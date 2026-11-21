@@ -24,9 +24,26 @@ from bless import (
     GATTAttributePermissions,
     GATTCharacteristicProperties,
 )
-from dbus_next.service import ServiceInterface, method
+from bless.backends.bluezdbus.dbus import application as bluez_app
+from bless.backends.bluezdbus.dbus.advertisement import BlueZLEAdvertisement
+from dbus_next import Message, MessageType
+from dbus_next.constants import PropertyAccess
+from dbus_next.service import ServiceInterface, dbus_property, method
 
 log = logging.getLogger("s3xy")
+
+
+class DiscoverableAdvertisement(BlueZLEAdvertisement):
+    """bless advertisement plus Discoverable=true, so BlueZ sets the LE General
+    Discoverable flag (flags 0x06) like the real button / ESP32 sketch does."""
+
+    @dbus_property(access=PropertyAccess.READ)
+    def Discoverable(self) -> "b":  # noqa: F821 N802
+        return True
+
+
+# bless creates its advertisement from this module-level name in start_advertising()
+bluez_app.BlueZLEAdvertisement = DiscoverableAdvertisement
 
 # ---- Protocol (from the original ESP32 sketch) ----
 SERVICE_UUID = "00003d46-87d2-479e-7e45-8551415a6de1"
@@ -89,6 +106,7 @@ class S3XYButton:
         self.server.read_request_func = self._on_read
         self.server.write_request_func = self._on_write
         self._lock = asyncio.Lock()
+        self._device_path = None  # D-Bus path of the connected Commander
 
     async def start(self):
         s = self.server
@@ -110,7 +128,12 @@ class S3XYButton:
         )
         await s.start()
         await self._register_agent()
-        log.info("Advertising as %s - add it on the Commander: Buttons -> Add S3XY Button", self.name)
+        await self._watch_devices()
+        log.info(
+            "Advertising as %s on %s (discoverable, advertising=%s) - add it on the Commander: "
+            "Buttons -> Add S3XY Button",
+            self.name, self.server.adapter.path, await s.is_advertising(),
+        )
 
     async def _register_agent(self):
         bus = self.server.bus
@@ -124,23 +147,66 @@ class S3XYButton:
         adapter = self.server.adapter.get_interface("org.bluez.Adapter1")
         await adapter.set_pairable(True)
 
+    async def _watch_devices(self):
+        """Log connect/pair/bond events from BlueZ for devices on our adapter."""
+        bus = self.server.bus
+        rule = (
+            "type='signal',sender='org.bluez',interface='org.freedesktop.DBus.Properties',"
+            "member='PropertiesChanged',arg0='org.bluez.Device1'"
+        )
+        await bus.call(Message(
+            destination="org.freedesktop.DBus", path="/org/freedesktop/DBus",
+            interface="org.freedesktop.DBus", member="AddMatch", signature="s", body=[rule],
+        ))
+        bus.add_message_handler(self._on_dbus_message)
+
+    def _on_dbus_message(self, msg):
+        if (msg.message_type != MessageType.SIGNAL or msg.member != "PropertiesChanged"
+                or not msg.body or msg.body[0] != "org.bluez.Device1"
+                or not msg.path.startswith(self.server.adapter.path + "/")):
+            return
+        keys = ("Connected", "Paired", "Bonded", "ServicesResolved")
+        changed = {k: v.value for k, v in msg.body[1].items() if k in keys}
+        if not changed:
+            return
+        addr = msg.path.rsplit("dev_", 1)[-1].replace("_", ":")
+        log.info("Device %s: %s", addr, ", ".join(f"{k}={v}" for k, v in changed.items()))
+        if changed.get("Connected") is True:
+            self._device_path = msg.path
+        elif changed.get("Connected") is False and self._device_path == msg.path:
+            self._device_path = None
+        return None
+
+    async def _disconnect(self):
+        if not self._device_path:
+            log.warning("Disconnect requested, but no connected device is known")
+            return
+        try:
+            intro = await self.server.bus.introspect("org.bluez", self._device_path)
+            dev = self.server.bus.get_proxy_object("org.bluez", self._device_path, intro)
+            await dev.get_interface("org.bluez.Device1").call_disconnect()
+        except Exception as e:  # noqa: BLE001
+            log.warning("Disconnect failed: %s", e)
+
     # --- GATT handlers ---
     def _on_read(self, characteristic, **kwargs):
+        if str(characteristic.uuid).lower() == CHAR_ID_UUID:
+            log.info("ID read")
         return characteristic.value
 
     def _on_write(self, characteristic, value, **kwargs):
+        # Store the written value like the ESP32 BLE library does (proven against a real Commander)
+        characteristic.value = value
         if str(characteristic.uuid).lower() != CHAR_ID_UUID:
-            characteristic.value = value
             return
-        # Writes to the ID char are commands; keep the stored value as the
-        # 10-byte button ID so later reads still return it.
         data = bytes(value)
         log.info("ID write: %s", data.hex(" "))
         if data == b"\xb6":  # init / version check
             self.loop.create_task(self._notify_seq([b"\xc7\x00\x01"]))
             log.info("Commander initialized")
-        elif data == b"\xa1":  # unpair
-            log.info("Commander requested unpair")
+        elif data == b"\xa1":  # unpair -> disconnect, like the ESP32 sketch
+            log.info("Commander requested unpair -> disconnect")
+            self.loop.create_task(self._disconnect())
         elif len(data) == 4 and data[0] == 0xA4:  # rename
             self.loop.create_task(self._notify_seq([bytes([0xA4, 0x00, data[1], data[2]])]))
             log.info("Rename handled")

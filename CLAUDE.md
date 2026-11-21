@@ -15,7 +15,8 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
 ## Status (2026-11-21)
 - `s3xy_ha_bridge.py` is written, compiles and imports, but has **not been tested on hardware yet**. No BLE was available where it was written.
 - Erik runs **Home Assistant OS** and already has Mosquitto. Decision: run the bridge on the HA host **as an add-on** (`s3xy_button/`), using MQTT.
-- The add-on's dependencies install and import on Alpine (python:3.13-alpine3.22). The real HA base image could not be pulled in the sandbox, so the add-on has not been built by HA Supervisor yet.
+- The add-on builds and runs on Erik's HA OS (hci0, Intel adapter, shared with HA's passive Bluetooth scanning). MQTT works (`core-mosquitto`), and a Shelly proxy sees hci0 advertising.
+- **First pairing attempt (v0.2.0) failed:** the Commander app said "Something went wrong" and the add-on logged nothing at all after start, i.e. no connection/pairing/write was ever seen. v0.3.0 makes the advertisement discoverable (flags like the ESP32's `0x06`) and logs BlueZ Connected/Paired/Bonded/ServicesResolved events, so the next attempt shows how far it gets.
 - HA side: MQTT discovery creates `button` entities (Press / Double press / Long press) plus a `binary_sensor` "Commander connected". This needs Mosquitto + the MQTT integration in HA.
 
 ## Files
@@ -37,21 +38,23 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
   - Notify char `00003d50-…` (read, notify). Button events are sent here.
   - "ID" char `00003d49-…` (read/write, **encryption required**). Value is a 10-byte ID (`SABRINASNS` in the original). The Commander writes commands to it.
 - Security: LE Secure Connections + bonding, "Just Works" (IO cap NoInputNoOutput), 16-byte key.
+- Advertising in the sketch: flags `0x06`, appearance `0x0000` and the name in the advertisement; the complete 128-bit service UUID in the scan response. bless sets name + service UUID but no Discoverable, so the bridge swaps in `DiscoverableAdvertisement` (monkeypatches `bless.backends.bluezdbus.dbus.application.BlueZLEAdvertisement`; relies on bless 0.3.x internals).
+- The ESP32 BLE library stores written values, so after `B6` a read of the ID char returns `b6`. The bridge does the same on purpose to match the proven implementation.
 - Commander -> button (writes to ID char):
   - `B6` -> reply notify `C7 00 01` (init/version check)
-  - `A1` -> unpair/disconnect request. **Currently only logged**, and no disconnect is done. TODO: call `org.bluez.Device1.Disconnect`.
+  - `A1` -> unpair/disconnect request. Calls `org.bluez.Device1.Disconnect` on the connected device (like `g_server->disconnect(0)` in the sketch).
   - `A4 XX YY ZZ` -> reply notify `A4 00 XX YY` (rename, likely the S/E/X/Y tag)
 - Button -> Commander (notify):
   - Single: `01`, `00`, `C1 01`, `00` (about 5–20 ms apart)
   - Double: `C1 02`
   - Long: `C3 01`
-  - On connect, the ESP32 version sends a "poke" `00`. **The Python version does not** (bless has no connect callback). Add it if pairing/init fails.
+  - On connect, the ESP32 version "pokes" `00`, but `notifyBytes()` drops it unless notifications are already subscribed, which they never are right at connect. So the poke is effectively a no-op and is not ported.
 
 ## Implementation notes / known risks
 - `bless` sends a notify by changing the `Value` property on D-Bus. Check that two identical packets in a row (`00` … `00` in single) are actually both sent. If not, the single sequence may fail.
 - The `JustWorksAgent` is registered as BlueZ default agent. It can conflict with other agents on the system.
 - HA's own Bluetooth integration uses the same BlueZ. Preferably use a separate adapter (`BT_ADAPTER=hci1`).
-- `is_connected()` is polled every 5 s for the binary_sensor.
+- `is_connected()` is polled every 5 s for the binary_sensor. Connection events themselves are logged immediately via D-Bus `PropertiesChanged` on `org.bluez.Device1` (filtered to our adapter).
 - The method signatures in `JustWorksAgent` use dbus-next string annotations (`"o"`, `"u"`, `"s"`). pyflakes reports them as false positives.
 
 ## How to test (first time on hardware)
@@ -62,7 +65,7 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
 
 ## Roadmap ideas
 1. Get pairing + single/double/long working on real hardware.
-2. Handle `A1` (disconnect) and the connect poke properly.
+2. ~~Handle `A1` (disconnect)~~ Done. Connect poke not needed (see protocol notes).
 3. More virtual buttons (one per S/E/X/Y tag?), or configurable IDs.
 4. **Two-way communication with the Commander:** sniff what else the Commander/app sends (nRF Connect + btmon/Wireshark), map characteristics and status, and expose them as HA sensors.
 5. **ESPHome alternative (optional, for range):** an ESP32 near the car running ESPHome, talking natively to HA (no MQTT/add-on). Preferred route: an ESPHome external component wrapping the protocol from Beat-YT's `S3XYButton.cpp` (proven against a real Commander). ESPHome's built-in `esp32_ble_server` is an option only if it supports the encryption-required characteristic + LE Secure Connections bonding the Commander needs (unverified). Note: HA's Bluetooth proxies (Shelly, ESPHome proxy) cannot be used, since they only scan/connect as a central and cannot act as a peripheral.

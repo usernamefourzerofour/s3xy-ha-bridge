@@ -1,5 +1,5 @@
 name: S3XY virtual button
-version: "0.2.0"
+version: "0.3.0"
 slug: s3xy_button
 description: Control an S3XY Commander from Home Assistant via a virtual Bluetooth button (ENH_BTN)
 url: https://github.com/usernamefourzerofour/s3xy-ha-bridge
