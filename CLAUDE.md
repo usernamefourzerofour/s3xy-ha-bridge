@@ -17,6 +17,7 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
 - Erik runs **Home Assistant OS** and already has Mosquitto. Decision: run the bridge on the HA host **as an add-on** (`s3xy_button/`), using MQTT.
 - The add-on builds and runs on Erik's HA OS (hci0, Intel adapter, shared with HA's passive Bluetooth scanning). MQTT works (`core-mosquitto`), and a Shelly proxy sees hci0 advertising.
 - **First pairing attempt (v0.2.0) failed:** the Commander app said "Something went wrong" and the add-on logged nothing at all after start, i.e. no connection/pairing/write was ever seen. v0.3.0 makes the advertisement discoverable (flags like the ESP32's `0x06`) and logs BlueZ Connected/Paired/Bonded/ServicesResolved events, so the next attempt shows how far it gets.
+- **Second attempt (v0.3.0) failed the same way** (no connection logged). nRF Connect (iPhone) at the car showed: `ENH_BTN` advertising correctly (name + service `00003d46-…`) but only **-92 dBm**, while the Tesla (`S…C`) and the Commander were at -55 dBm. **Main suspect now: range/signal strength.** A real button sits inside the car, centimetres from the Commander. Next: verify pairing/GATT with nRF Connect close to the HA host, then improve signal (USB dongle on an extension cable towards the car, or the ESPHome/ESP32 route).
 - HA side: MQTT discovery creates `button` entities (Press / Double press / Long press) plus a `binary_sensor` "Commander connected". This needs Mosquitto + the MQTT integration in HA.
 
 ## Files
@@ -68,7 +69,7 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
 1. Get pairing + single/double/long working on real hardware.
 2. ~~Handle `A1` (disconnect)~~ Done. Connect poke not needed (see protocol notes).
 3. More virtual buttons (one per S/E/X/Y tag?), or configurable IDs.
-4. **Two-way communication with the Commander:** sniff what else the Commander/app sends (nRF Connect + btmon/Wireshark), map characteristics and status, and expose them as HA sensors.
+4. **Two-way communication with the Commander:** the Commander itself advertises as `ENH_<6 hex>` (Erik's: `ENH_550422`) with service `5857a678-87c6-11eb-8dcd-0242ac130003`, presumably what the S3XY app talks to. Start there. Then sniff what else the Commander/app sends (nRF Connect + btmon/Wireshark), map characteristics and status, and expose them as HA sensors.
 5. **ESPHome alternative (optional, for range):** an ESP32 near the car running ESPHome, talking natively to HA (no MQTT/add-on). Preferred route: an ESPHome external component wrapping the protocol from Beat-YT's `S3XYButton.cpp` (proven against a real Commander). ESPHome's built-in `esp32_ble_server` is an option only if it supports the encryption-required characteristic + LE Secure Connections bonding the Commander needs (unverified). Note: HA's Bluetooth proxies (Shelly, ESPHome proxy) cannot be used, since they only scan/connect as a central and cannot act as a peripheral.
 6. ~~Package it as a Home Assistant add-on~~ Done (`s3xy_button/`). Bump `version` in `config.yaml` on every change so HA offers the update, and add an entry to `s3xy_button/CHANGELOG.md`.
 
