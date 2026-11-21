@@ -17,13 +17,17 @@ esphome:
   min_version: 2026.11.0
 
 substitutions:
-  s3xy_firmware_version: "0.1.0"
+  s3xy_firmware_version: "0.1.1"
+  s3xy_button_id: SABRINASNS
 
 external_components:
   - source: github://usernamefourzerofour/s3xy-ha-bridge@main
     components: [s3xy_ble_security]
+    refresh: always
 
 s3xy_ble_security:
+  id: s3xy_link
+  notify_id: notify_char
 
 # Same security as the real button: LE Secure Connections + bonding, "Just Works", 16-byte key
 esp32_ble:
@@ -46,6 +50,12 @@ esp32_ble_server:
           notify: true
           value:
             data: [0x00]
+          descriptors:
+            # A quoted four-character UUID produces a 16-bit CCCD on the wire.
+            - uuid: "2902"
+              read: true
+              write: true
+              value: [0x00, 0x00]
         # Button ID; the Commander writes its commands here
         - id: id_char
           uuid: 00003d49-87d2-479e-7e45-8551415a6de1
@@ -54,23 +64,19 @@ esp32_ble_server:
           read_encrypt: true
           write_encrypt: true
           value:
-            data: SABRINASNS
+            data: ${s3xy_button_id}
           on_write:
             then:
               - lambda: |-
                   // x = written bytes, id = connection id
                   ESP_LOGI("s3xy", "ID write: %s", format_hex_pretty(x).c_str());
                   if (x.size() == 1 && x[0] == 0xB6) {          // init / version check
-                    id(notify_char)->set_value({0xC7, 0x00, 0x01});
-                    id(notify_char)->notify();
-                    ESP_LOGI("s3xy", "Commander initialized");
+                    id(s3xy_link)->reply_to_init();
                   } else if (x.size() == 1 && x[0] == 0xA1) {   // unpair -> disconnect
                     ESP_LOGI("s3xy", "Commander requested unpair -> disconnect");
                     esp_ble_gatts_close(id(ble_srv)->get_gatts_if(), id);
                   } else if (x.size() == 4 && x[0] == 0xA4) {   // rename
-                    id(notify_char)->set_value({0xA4, 0x00, x[1], x[2]});
-                    id(notify_char)->notify();
-                    ESP_LOGI("s3xy", "Rename handled");
+                    id(s3xy_link)->reply_to_rename(x[1], x[2]);
                   }
   on_connect:
     - logger.log: "Commander connected"
@@ -79,6 +85,13 @@ esp32_ble_server:
         state: true
   on_disconnect:
     - logger.log: "Commander disconnected"
+    - script.stop: press_single
+    - ble_server.characteristic.set_value:
+        id: id_char
+        value: ${s3xy_button_id}
+    - ble_server.characteristic.set_value:
+        id: notify_char
+        value: [0x00]
     - binary_sensor.template.publish:
         id: commander_connected
         state: false
@@ -94,47 +107,59 @@ script:
   - id: press_single
     mode: queued
     then:
-      - ble_server.characteristic.set_value:
-          id: notify_char
-          value: [0x01]
-      - ble_server.characteristic.notify:
-          id: notify_char
-      - delay: 10ms
-      - ble_server.characteristic.set_value:
-          id: notify_char
-          value: [0x00]
-      - ble_server.characteristic.notify:
-          id: notify_char
-      - delay: 10ms
-      - ble_server.characteristic.set_value:
-          id: notify_char
-          value: [0xC1, 0x01]
-      - ble_server.characteristic.notify:
-          id: notify_char
-      - delay: 10ms
-      - ble_server.characteristic.set_value:
-          id: notify_char
-          value: [0x00]
-      - ble_server.characteristic.notify:
-          id: notify_char
+      - if:
+          condition:
+            lambda: return id(s3xy_link)->ready_for_press();
+          then:
+            - ble_server.characteristic.set_value:
+                id: notify_char
+                value: [0x01]
+            - ble_server.characteristic.notify:
+                id: notify_char
+            - delay: 10ms
+            - ble_server.characteristic.set_value:
+                id: notify_char
+                value: [0x00]
+            - ble_server.characteristic.notify:
+                id: notify_char
+            - delay: 10ms
+            - ble_server.characteristic.set_value:
+                id: notify_char
+                value: [0xC1, 0x01]
+            - ble_server.characteristic.notify:
+                id: notify_char
+            - delay: 10ms
+            - ble_server.characteristic.set_value:
+                id: notify_char
+                value: [0x00]
+            - ble_server.characteristic.notify:
+                id: notify_char
   # Double: C1 02
   - id: press_double
     mode: queued
     then:
-      - ble_server.characteristic.set_value:
-          id: notify_char
-          value: [0xC1, 0x02]
-      - ble_server.characteristic.notify:
-          id: notify_char
+      - if:
+          condition:
+            lambda: return id(s3xy_link)->ready_for_press();
+          then:
+            - ble_server.characteristic.set_value:
+                id: notify_char
+                value: [0xC1, 0x02]
+            - ble_server.characteristic.notify:
+                id: notify_char
   # Long: C3 01
   - id: press_long
     mode: queued
     then:
-      - ble_server.characteristic.set_value:
-          id: notify_char
-          value: [0xC3, 0x01]
-      - ble_server.characteristic.notify:
-          id: notify_char
+      - if:
+          condition:
+            lambda: return id(s3xy_link)->ready_for_press();
+          then:
+            - ble_server.characteristic.set_value:
+                id: notify_char
+                value: [0xC3, 0x01]
+            - ble_server.characteristic.notify:
+                id: notify_char
 
 button:
   - platform: template

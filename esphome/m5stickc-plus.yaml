@@ -67,17 +67,28 @@ display:
       const auto grey = Color(140, 140, 140);
       it.fill(Color::BLACK);
       it.print(10, 8, id(font_title), white, "S3XY button");
-      if (id(commander_connected).state) {
-        it.print(10, 55, id(font_text), green, "Commander connected");
+      if (id(s3xy_link)->subscribed()) {
+        it.print(10, 51, id(font_text), green, "Commander ready");
+      } else if (id(commander_connected).state) {
+        it.print(10, 51, id(font_text), orange, "Commander linking...");
       } else {
-        it.print(10, 55, id(font_text), orange, "Waiting for Commander");
+        it.print(10, 51, id(font_text), orange, "Waiting for Commander");
       }
       if (api::global_api_server != nullptr && api::global_api_server->is_connected()) {
-        it.print(10, 95, id(font_text), green, "Home Assistant OK");
+        it.print(10, 78, id(font_text), green, "Home Assistant OK");
       } else if (wifi::global_wifi_component->is_connected()) {
-        it.print(10, 95, id(font_text), grey, "Wi-Fi OK, no HA");
+        it.print(10, 78, id(font_text), grey, "Wi-Fi OK, no HA");
       } else {
-        it.print(10, 95, id(font_text), orange, "No Wi-Fi");
+        it.print(10, 78, id(font_text), orange, "No Wi-Fi");
+      }
+      const uint8_t charge_reg = 0x01;
+      uint8_t charge_status = 0;
+      if (id(bus_i2c)->write_readv(0x34, &charge_reg, 1, &charge_status, 1) == i2c::ERROR_OK) {
+        const bool charging = (charge_status & 0x40) != 0;
+        it.print(10, 132, id(font_text), charging ? green : grey, TextAlign::BOTTOM_LEFT,
+                 charging ? "Charging" : "Not charging");
+      } else {
+        it.print(10, 132, id(font_text), orange, TextAlign::BOTTOM_LEFT, "Charge unknown");
       }
       it.print(230, 132, id(font_text), grey, TextAlign::BOTTOM_RIGHT, "v${s3xy_firmware_version}");
 

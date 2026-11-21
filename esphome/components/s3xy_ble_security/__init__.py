@@ -12,6 +12,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(): cv.declare_id(S3XYBLESecurity),
         cv.GenerateID("ble_id"): cv.use_id(esp32_ble.ESP32BLE),
         cv.GenerateID("server_id"): cv.use_id(esp32_ble_server.BLEServer),
+        cv.Required("notify_id"): cv.use_id(esp32_ble_server.BLECharacteristic),
     }
 )
 
@@ -19,5 +20,6 @@ CONFIG_SCHEMA = cv.Schema(
 async def to_code(config):
     ble = await cg.get_variable(config["ble_id"])
     server = await cg.get_variable(config["server_id"])
-    security = cg.new_Pvariable(config[CONF_ID], server)
+    notify = await cg.get_variable(config["notify_id"])
+    security = cg.new_Pvariable(config[CONF_ID], server, notify)
     esp32_ble.register_gatts_event_handler(ble, security)
