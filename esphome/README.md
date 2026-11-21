@@ -23,7 +23,7 @@ car, and a real button is only centimetres away from it, so the signal must be s
 Use `m5stickc-plus.yaml` instead. Copy **both** YAML files to your ESPHome config folder, since it
 includes `s3xy-button.yaml`. Extras:
 - The red LED lights up while the Commander is connected.
-- The big front button (M5) sends a single press.
+- The big front button (M5) sends single, double and long presses. A single press waits 300 ms after release for a second tap. Holding the button for 600 ms sends a long press while the button is still down.
 - The screen turns on at power-up and shows whether the Commander and Home Assistant are connected.
   The display's power and backlight come from the AXP192 power chip, which is switched on over I2C at boot.
 
