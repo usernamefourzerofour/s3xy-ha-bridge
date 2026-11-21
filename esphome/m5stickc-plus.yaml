@@ -7,7 +7,7 @@
 #
 # Includes s3xy-button.yaml and adds:
 #   - the red LED (G10) lights up while the Commander is connected
-#   - the big front button (M5, G37) sends single, double and long presses
+#   - the big front button (M5, G37) sends button-down and button-up events
 #   - the screen turns on at power-up and shows Commander and Wi-Fi status
 # Keep it on USB power: the 120 mAh battery only lasts a few hours.
 
@@ -142,43 +142,25 @@ binary_sensor:
     filters:
       - delayed_on_off: 20ms
     on_press:
-      # A second press cancels the pending single, even if it becomes a hold.
-      - lambda: id(front_button_second_press) = id(front_button_single_timeout).is_running();
-      - script.stop: front_button_single_timeout
-      - script.execute: front_button_hold_timeout
-    on_release:
-      - lambda: id(s3xy_link)->set_pairing_held(false);
-      - if:
-          # After a long press has fired, the hold timer is no longer running.
-          condition:
-            script.is_running: front_button_hold_timeout
-          then:
-            - script.stop: front_button_hold_timeout
-            - if:
-                condition:
-                  lambda: return id(front_button_second_press);
-                then:
-                  - script.execute: press_double
-                else:
-                  - script.execute: front_button_single_timeout
-
-globals:
-  - id: front_button_second_press
-    type: bool
-    initial_value: 'false'
-
-script:
-  - id: front_button_single_timeout
-    then:
-      - delay: 300ms
-      - script.execute: press_single
-  - id: front_button_hold_timeout
-    then:
-      - delay: 600ms
       - if:
           condition:
             lambda: return id(s3xy_link)->subscribed();
           then:
-            - script.execute: press_long
+            - lambda: id(s3xy_link)->set_front_button(true);
           else:
+            - script.execute: front_button_pairing_hold
+    on_release:
+      - script.stop: front_button_pairing_hold
+      - lambda: |-
+          id(s3xy_link)->set_front_button(false);
+          id(s3xy_link)->set_pairing_held(false);
+
+script:
+  - id: front_button_pairing_hold
+    then:
+      - delay: 600ms
+      - if:
+          condition:
+            lambda: return !id(s3xy_link)->subscribed();
+          then:
             - lambda: id(s3xy_link)->set_pairing_held(true);

@@ -28,7 +28,7 @@ car, and a real button is only centimetres away from it, so the signal must be s
 Use `m5stickc-plus.yaml` in the package URL. See [the complete example](example-m5stickc-plus.yaml).
 Extras:
 - The red LED lights up while the Commander is connected.
-- The big front button (M5) sends single, double and long presses when the Commander is ready. A single press waits 300 ms after release for a second tap. Holding the button for 600 ms sends a long press while the button is still down.
+- When the Commander is ready, the front M5 button sends button-down (`01`) and button-up (`00`) as they happen, so the Commander sees the actual timing. The Home Assistant buttons still send their individual single, double and long press commands.
 - The screen turns on at power-up and shows Commander readiness, charging status, estimated battery percentage and the S3XY firmware version.
   The display's power and backlight come from the AXP192 power chip, which is switched on over I2C at boot.
 

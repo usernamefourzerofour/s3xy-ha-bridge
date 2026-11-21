@@ -74,6 +74,8 @@ class S3XYBLESecurity : public Component {
         const auto &write = param->write;
         if (this->link_allowed_ && write.handle == this->cccd_handle_ && write.len == 2 && !write.is_prep) {
           this->subscribed_ = (write.value[0] & 0x01) != 0;
+          if (!this->subscribed_)
+            this->front_button_down_ = false;
           ESP_LOGI("s3xy", "Commander notifications %s", this->subscribed_ ? "enabled" : "disabled");
           this->flush_replies_();
         }
@@ -82,6 +84,7 @@ class S3XYBLESecurity : public Component {
       case ESP_GATTS_DISCONNECT_EVT:
         this->link_allowed_ = false;
         this->subscribed_ = false;
+        this->front_button_down_ = false;
         this->pending_init_ = false;
         this->pending_rename_.reset();
         if (this->hold_to_pair_) {
@@ -97,6 +100,15 @@ class S3XYBLESecurity : public Component {
   }
 
   bool subscribed() const { return this->subscribed_; }
+
+  void set_front_button(bool down) {
+    if (!this->subscribed_ || down == this->front_button_down_)
+      return;
+    this->front_button_down_ = down;
+    this->notify_->set_value({static_cast<uint8_t>(down ? 0x01 : 0x00)});
+    this->notify_->notify();
+    ESP_LOGI("s3xy", "Front button %s", down ? "down" : "up");
+  }
 
   bool ready_for_press() const {
     if (this->subscribed_) {
@@ -218,6 +230,7 @@ class S3XYBLESecurity : public Component {
   bool link_allowed_{false};
   bool forget_peer_{false};
   bool subscribed_{false};
+  bool front_button_down_{false};
   bool pending_init_{false};
   std::optional<std::array<uint8_t, 4>> pending_rename_;
 };
