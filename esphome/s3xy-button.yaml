@@ -17,7 +17,7 @@ esphome:
   min_version: 2026.11.0
 
 substitutions:
-  s3xy_firmware_version: "0.1.1"
+  s3xy_firmware_version: "0.1.2"
   s3xy_button_id: SABRINASNS
 
 external_components:
@@ -74,7 +74,7 @@ esp32_ble_server:
                     id(s3xy_link)->reply_to_init();
                   } else if (x.size() == 1 && x[0] == 0xA1) {   // unpair -> disconnect
                     ESP_LOGI("s3xy", "Commander requested unpair -> disconnect");
-                    esp_ble_gatts_close(id(ble_srv)->get_gatts_if(), id);
+                    id(s3xy_link)->unpair(id);
                   } else if (x.size() == 4 && x[0] == 0xA4) {   // rename
                     id(s3xy_link)->reply_to_rename(x[1], x[2]);
                   }
@@ -111,6 +111,10 @@ script:
           condition:
             lambda: return id(s3xy_link)->ready_for_press();
           then:
+            - logger.log:
+                level: INFO
+                tag: s3xy
+                format: "Sending single press"
             - ble_server.characteristic.set_value:
                 id: notify_char
                 value: [0x01]
@@ -142,6 +146,10 @@ script:
           condition:
             lambda: return id(s3xy_link)->ready_for_press();
           then:
+            - logger.log:
+                level: INFO
+                tag: s3xy
+                format: "Sending double press"
             - ble_server.characteristic.set_value:
                 id: notify_char
                 value: [0xC1, 0x02]
@@ -155,6 +163,10 @@ script:
           condition:
             lambda: return id(s3xy_link)->ready_for_press();
           then:
+            - logger.log:
+                level: INFO
+                tag: s3xy
+                format: "Sending long press"
             - ble_server.characteristic.set_value:
                 id: notify_char
                 value: [0xC3, 0x01]

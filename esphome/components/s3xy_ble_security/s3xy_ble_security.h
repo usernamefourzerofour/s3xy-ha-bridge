@@ -3,19 +3,49 @@
 #include <esp_gap_ble_api.h>
 
 #include <array>
+#include <cstring>
 #include <optional>
+#include <vector>
 
+#include "esphome/components/esp32_ble/ble.h"
 #include "esphome/components/esp32_ble_server/ble_characteristic.h"
 #include "esphome/components/esp32_ble_server/ble_server.h"
 #include "esphome/components/esp32_ble_server/ble_service.h"
+#include "esphome/core/component.h"
 #include "esphome/core/log.h"
 
 namespace esphome::s3xy_ble_security {
 
-class S3XYBLESecurity {
+class S3XYBLESecurity : public Component {
  public:
-  S3XYBLESecurity(esp32_ble_server::BLEServer *server, esp32_ble_server::BLECharacteristic *notify)
-      : server_(server), notify_(notify) {}
+  S3XYBLESecurity(esp32_ble::ESP32BLE *ble, esp32_ble_server::BLEServer *server,
+                  esp32_ble_server::BLECharacteristic *notify)
+      : ble_(ble), server_(server), notify_(notify) {}
+
+  void enable_hold_to_pair() {
+    this->hold_to_pair_ = true;
+    this->server_->set_advertising_required(false);
+    this->server_->set_pairing_enabled(false);
+  }
+
+  bool pairing_held() const { return this->pairing_held_; }
+  bool waiting_for_hold() const { return this->hold_to_pair_ && !this->advertising_requested_; }
+
+  void set_pairing_held(bool held) {
+    if (!this->hold_to_pair_ || this->pairing_held_ == held)
+      return;
+    this->pairing_held_ = held;
+    ESP_LOGI("s3xy", "Pairing button %s", held ? "held" : "released");
+    this->refresh_advertising_();
+  }
+
+  void unpair(uint16_t connection_id) {
+    this->forget_peer_ = this->hold_to_pair_;
+    if (esp_ble_gatts_close(this->server_->get_gatts_if(), connection_id) != ESP_OK) {
+      this->forget_peer_ = false;
+      ESP_LOGW("s3xy", "Could not disconnect Commander after unpair request");
+    }
+  }
 
   void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param) {
     if (gatts_if != this->server_->get_gatts_if())
@@ -24,8 +54,11 @@ class S3XYBLESecurity {
     switch (event) {
       case ESP_GATTS_CONNECT_EVT:
         if (param->connect.link_role == 1) {
-          this->start_encryption_(param->connect.remote_bda);
+          this->accept_connection_(param->connect.remote_bda, param->connect.conn_id);
         }
+        break;
+      case ESP_GATTS_START_EVT:
+        this->refresh_advertising_();
         break;
       case ESP_GATTS_ADD_CHAR_DESCR_EVT: {
         const auto &descriptor = param->add_char_descr;
@@ -39,7 +72,7 @@ class S3XYBLESecurity {
       }
       case ESP_GATTS_WRITE_EVT: {
         const auto &write = param->write;
-        if (write.handle == this->cccd_handle_ && write.len == 2 && !write.is_prep) {
+        if (this->link_allowed_ && write.handle == this->cccd_handle_ && write.len == 2 && !write.is_prep) {
           this->subscribed_ = (write.value[0] & 0x01) != 0;
           ESP_LOGI("s3xy", "Commander notifications %s", this->subscribed_ ? "enabled" : "disabled");
           this->flush_replies_();
@@ -47,9 +80,16 @@ class S3XYBLESecurity {
         break;
       }
       case ESP_GATTS_DISCONNECT_EVT:
+        this->link_allowed_ = false;
         this->subscribed_ = false;
         this->pending_init_ = false;
         this->pending_rename_.reset();
+        if (this->hold_to_pair_) {
+          this->server_->set_pairing_enabled(false);
+          if (this->forget_peer_)
+            this->remove_bond_(param->disconnect.remote_bda);
+          this->refresh_advertising_();
+        }
         break;
       default:
         break;
@@ -77,6 +117,68 @@ class S3XYBLESecurity {
   }
 
  private:
+  void remove_bond_(esp_bd_addr_t peer) {
+    if (esp_ble_remove_bond_device(peer) != ESP_OK) {
+      this->forget_peer_ = false;
+      ESP_LOGW("s3xy", "Could not request removal of Commander's stored BLE bond");
+      return;
+    }
+    // Bond removal runs asynchronously in the Bluetooth stack.
+    std::array<uint8_t, ESP_BD_ADDR_LEN> address;
+    std::memcpy(address.data(), peer, address.size());
+    this->set_timeout(1000, [this, address]() {
+      this->forget_peer_ = false;
+      if (this->is_bonded_(address.data())) {
+        ESP_LOGW("s3xy", "Commander's stored BLE bond is still present");
+      }
+      this->refresh_advertising_();
+    });
+  }
+
+  void refresh_advertising_() {
+    if (!this->hold_to_pair_)
+      return;
+    auto *service = this->notify_->get_service();
+    const bool should_advertise = service != nullptr && service->is_running() && !this->forget_peer_ &&
+                                  (this->pairing_held_ || esp_ble_get_bond_device_num() > 0);
+    if (should_advertise == this->advertising_requested_)
+      return;
+    this->advertising_requested_ = should_advertise;
+    if (should_advertise) {
+      this->ble_->advertising_start();
+    } else {
+      this->ble_->advertising_stop();
+    }
+  }
+
+  bool is_bonded_(const uint8_t *peer) const {
+    int count = esp_ble_get_bond_device_num();
+    if (count <= 0)
+      return false;
+    std::vector<esp_ble_bond_dev_t> bonds(count);
+    if (esp_ble_get_bond_device_list(&count, bonds.data()) != ESP_OK)
+      return false;
+    for (int i = 0; i < count; ++i) {
+      if (std::memcmp(bonds[i].bd_addr, peer, ESP_BD_ADDR_LEN) == 0)
+        return true;
+    }
+    return false;
+  }
+
+  void accept_connection_(esp_bd_addr_t peer, uint16_t connection_id) {
+    this->link_allowed_ = !this->hold_to_pair_ ||
+                          (!this->forget_peer_ && (this->pairing_held_ || this->is_bonded_(peer)));
+    if (this->hold_to_pair_) {
+      this->server_->set_pairing_enabled(this->link_allowed_);
+    }
+    if (this->link_allowed_) {
+      this->start_encryption_(peer);
+    } else {
+      ESP_LOGI("s3xy", "New BLE connection requires holding the M5 button");
+      esp_ble_gatts_close(this->server_->get_gatts_if(), connection_id);
+    }
+  }
+
   void flush_replies_() {
     // ESPHome's GATT server processes the CCCD write before this handler, so notify() can now deliver replies.
     if (!this->subscribed_)
@@ -106,9 +208,15 @@ class S3XYBLESecurity {
     }
   }
 
+  esp32_ble::ESP32BLE *ble_;
   esp32_ble_server::BLEServer *server_;
   esp32_ble_server::BLECharacteristic *notify_;
   uint16_t cccd_handle_{0xFFFF};
+  bool hold_to_pair_{false};
+  bool pairing_held_{false};
+  bool advertising_requested_{false};
+  bool link_allowed_{false};
+  bool forget_peer_{false};
   bool subscribed_{false};
   bool pending_init_{false};
   std::optional<std::array<uint8_t, 4>> pending_rename_;

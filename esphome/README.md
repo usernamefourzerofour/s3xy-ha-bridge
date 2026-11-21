@@ -28,8 +28,8 @@ car, and a real button is only centimetres away from it, so the signal must be s
 Use `m5stickc-plus.yaml` in the package URL. See [the complete example](example-m5stickc-plus.yaml).
 Extras:
 - The red LED lights up while the Commander is connected.
-- The big front button (M5) sends single, double and long presses. A single press waits 300 ms after release for a second tap. Holding the button for 600 ms sends a long press while the button is still down.
-- The screen turns on at power-up and shows Commander readiness, battery charging status and the S3XY firmware version.
+- The big front button (M5) sends single, double and long presses when the Commander is ready. A single press waits 300 ms after release for a second tap. Holding the button for 600 ms sends a long press while the button is still down.
+- The screen turns on at power-up and shows Commander readiness, charging status, estimated battery percentage and the S3XY firmware version.
   The display's power and backlight come from the AXP192 power chip, which is switched on over I2C at boot.
 
 ESPHome warns about GPIO10 (flash) and GPIO5/GPIO15 (strapping pins). On the M5StickC Plus these are
@@ -37,7 +37,8 @@ the LED and the display, so the warnings can be ignored. Keep it on USB power; t
 
 ## Pairing
 1. Open the device's logs in ESPHome Device Builder.
-2. Sit in the car (awake) and open **Buttons → Add S3XY Button** in the S3XY app.
+2. Sit in the car (awake) and open **Buttons → Add S3XY Button** in the S3XY app. On the M5StickC Plus,
+   hold the front M5 button until pairing completes. A bonded Commander can reconnect automatically.
 3. The log should show `Commander connected` and `Requested BLE encryption`. Look for
    `Commander notifications enabled`, `ID write: B6` and `Sent Commander initialization reply`.
 

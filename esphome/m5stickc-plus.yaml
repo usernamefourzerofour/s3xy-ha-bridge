@@ -14,6 +14,9 @@
 packages:
   s3xy: !include s3xy-button.yaml
 
+s3xy_ble_security:
+  hold_to_pair: true
+
 esphome:
   on_boot:
     # After the I2C bus (1000), before the display (600)
@@ -28,6 +31,13 @@ esphome:
           id(bus_i2c)->write_readv(axp, &reg, 1, &outputs, 1);
           const uint8_t power_on[2] = {0x12, (uint8_t) (outputs | 0x4D)};  // DCDC1, LDO2, LDO3, EXTEN
           id(bus_i2c)->write(axp, power_on, 2);
+          // Enable the battery voltage and current ADCs for the charge estimate.
+          const uint8_t adc_reg = 0x82;
+          uint8_t adc_enabled = 0;
+          if (id(bus_i2c)->write_readv(axp, &adc_reg, 1, &adc_enabled, 1) == i2c::ERROR_OK) {
+            const uint8_t adc_on[2] = {adc_reg, static_cast<uint8_t>(adc_enabled | 0xC0)};
+            id(bus_i2c)->write(axp, adc_on, 2);
+          }
 
 i2c:
   id: bus_i2c
@@ -69,8 +79,12 @@ display:
       it.print(10, 8, id(font_title), white, "S3XY button");
       if (id(s3xy_link)->subscribed()) {
         it.print(10, 51, id(font_text), green, "Commander ready");
+      } else if (id(s3xy_link)->pairing_held()) {
+        it.print(10, 51, id(font_text), green, "Pairing - keep holding");
       } else if (id(commander_connected).state) {
         it.print(10, 51, id(font_text), orange, "Commander linking...");
+      } else if (id(s3xy_link)->waiting_for_hold()) {
+        it.print(10, 51, id(font_text), orange, "Hold M5 to pair");
       } else {
         it.print(10, 51, id(font_text), orange, "Waiting for Commander");
       }
@@ -85,8 +99,22 @@ display:
       uint8_t charge_status = 0;
       if (id(bus_i2c)->write_readv(0x34, &charge_reg, 1, &charge_status, 1) == i2c::ERROR_OK) {
         const bool charging = (charge_status & 0x40) != 0;
-        it.print(10, 132, id(font_text), charging ? green : grey, TextAlign::BOTTOM_LEFT,
-                 charging ? "Charging" : "Not charging");
+        const auto charge_color = charging ? green : grey;
+        const char *charge_label = charging ? "Charging" : "Not charging";
+        const uint8_t battery_reg = 0x78;
+        uint8_t battery_adc[4]{};
+        if (id(bus_i2c)->write_readv(0x34, &battery_reg, 1, battery_adc, sizeof(battery_adc)) == i2c::ERROR_OK &&
+            battery_adc[0] != 0) {
+          const int voltage = (battery_adc[0] << 4) | (battery_adc[1] & 0x0F);
+          const int charge_current = (battery_adc[2] << 5) | (battery_adc[3] & 0x1F);
+          // M5Unified's AXP192 voltage-based estimate, adjusted for charging current.
+          const float unloaded_level = voltage > 3150 ? (voltage - 3075) * 0.16f : (voltage - 2690) * 0.027f;
+          const float estimated_level = unloaded_level - (charge_current > 16 ? 16.0f : 0.0f);
+          const int percent = static_cast<int>(std::clamp(estimated_level, 0.0f, 100.0f) + 0.5f);
+          it.printf(10, 132, id(font_text), charge_color, TextAlign::BOTTOM_LEFT, "%s ~%d%%", charge_label, percent);
+        } else {
+          it.print(10, 132, id(font_text), charge_color, TextAlign::BOTTOM_LEFT, charge_label);
+        }
       } else {
         it.print(10, 132, id(font_text), orange, TextAlign::BOTTOM_LEFT, "Charge unknown");
       }
@@ -119,6 +147,7 @@ binary_sensor:
       - script.stop: front_button_single_timeout
       - script.execute: front_button_hold_timeout
     on_release:
+      - lambda: id(s3xy_link)->set_pairing_held(false);
       - if:
           # After a long press has fired, the hold timer is no longer running.
           condition:
@@ -146,4 +175,10 @@ script:
   - id: front_button_hold_timeout
     then:
       - delay: 600ms
-      - script.execute: press_long
+      - if:
+          condition:
+            lambda: return id(s3xy_link)->subscribed();
+          then:
+            - script.execute: press_long
+          else:
+            - lambda: id(s3xy_link)->set_pairing_held(true);
