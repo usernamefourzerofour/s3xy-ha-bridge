@@ -1,39 +1,20 @@
-# S3XY virtual button for ESPHome
+# S3XY virtual button for ESPHome (package)
 #
 # An ESP32 near the car pretends to be the Enhance Auto ENH_BTN Bluetooth button,
 # so Home Assistant can press it through the native ESPHome API (no MQTT, no add-on).
 # Protocol: see CLAUDE.md, ported from Beat-YT/s3xy-virtual-button (MIT).
 #
-# Needs an original ESP32, ESP32-S3 or ESP32-C3 (not ESP32-S2: no Bluetooth).
-# Put wifi_ssid, wifi_password and api_encryption_key in your ESPHome secrets.
-
-substitutions:
-  name: s3xy-button
-  friendly_name: S3XY virtual button
-  board: esp32dev
+# This file only holds the S3XY part. Add it to the YAML that ESPHome Device Builder
+# created for your device (which has Wi-Fi, API and OTA):
+#
+#   packages:
+#     s3xy: github://usernamefourzerofour/s3xy-ha-bridge/esphome/s3xy-button.yaml@main
+#
+# Needs an original ESP32, ESP32-S3 or ESP32-C3 (not ESP32-S2: no Bluetooth),
+# the esp-idf framework and ESPHome 2026.11 or newer.
 
 esphome:
-  name: ${name}
-  friendly_name: ${friendly_name}
   min_version: 2026.11.0
-
-esp32:
-  board: ${board}
-  framework:
-    type: esp-idf
-
-logger:
-
-api:
-  encryption:
-    key: !secret api_encryption_key
-
-ota:
-  - platform: esphome
-
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
 
 # Same security as the real button: LE Secure Connections + bonding, "Just Works", 16-byte key
 esp32_ble:

@@ -1,15 +1,15 @@
-# S3XY virtual button on an M5StickC Plus (ESP32-PICO-D4)
+# S3XY virtual button on an M5StickC Plus (ESP32-PICO-D4) (package)
 #
-# Uses s3xy-button.yaml and adds:
+# Add it to the YAML that ESPHome Device Builder created for your M5StickC Plus:
+#
+#   packages:
+#     s3xy: github://usernamefourzerofour/s3xy-ha-bridge/esphome/m5stickc-plus.yaml@main
+#
+# Includes s3xy-button.yaml and adds:
 #   - the red LED (G10) lights up while the Commander is connected
 #   - the big front button (M5, G37) sends a single press
 #   - the screen turns on at power-up and shows Commander and Wi-Fi status
 # Keep it on USB power: the 120 mAh battery only lasts a few hours.
-
-substitutions:
-  name: s3xy-button
-  friendly_name: S3XY virtual button
-  board: m5stick-c
 
 packages:
   s3xy: !include s3xy-button.yaml

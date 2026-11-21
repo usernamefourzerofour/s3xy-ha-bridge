@@ -1,0 +1,28 @@
+# Example of a complete device YAML for an M5StickC Plus.
+# Normally you keep the YAML that ESPHome Device Builder generated and only add the
+# "packages" block at the bottom.
+
+esphome:
+  name: s3xy-button
+  friendly_name: S3XY virtual button
+
+esp32:
+  board: m5stick-c
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+packages:
+  s3xy: github://usernamefourzerofour/s3xy-ha-bridge/esphome/m5stickc-plus.yaml@main
