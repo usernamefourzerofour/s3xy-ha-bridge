@@ -1,0 +1,7 @@
+configuration:
+  bt_adapter:
+    name: Bluetooth adapter
+    description: E.g. hci1 for an extra USB dongle. Empty = default adapter.
+  btn_name:
+    name: Bluetooth name
+    description: Name the button advertises. Leave it as ENH_BTN.

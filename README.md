@@ -10,9 +10,15 @@ plus en sensor, der viser om Commanderen er forbundet.
 - En MQTT-broker i Home Assistant (fx Mosquitto-add-on'en) + MQTT-integrationen
 - Brug helst en adapter, som Home Assistants Bluetooth-integration *ikke* bruger samtidig
 
-## Installation (Raspberry Pi OS / Debian)
+## Installation som Home Assistant-add-on (Home Assistant OS)
+1. *Indstillinger → Add-ons → Add-on butik → ⋮ → Repositories*, og tilføj
+   `https://github.com/usernamefourzerofour/s3xy-ha-bridge`
+2. Installér **S3XY virtuel knap** og start den. MQTT-login hentes automatisk fra Mosquitto.
+3. Se fanen *Dokumentation* i add-on'en for indstillinger og parring.
+
+## Installation (Raspberry Pi OS / Debian, uden HA OS)
 ```bash
-sudo mkdir -p /opt/s3xy && sudo cp s3xy_ha_bridge.py requirements.txt /opt/s3xy/
+sudo mkdir -p /opt/s3xy && sudo cp s3xy_button/s3xy_ha_bridge.py s3xy_button/requirements.txt /opt/s3xy/
 sudo python3 -m venv /opt/s3xy/venv
 sudo /opt/s3xy/venv/bin/pip install -r /opt/s3xy/requirements.txt
 # Ret MQTT_HOST/USER/PASS i servicefilen først

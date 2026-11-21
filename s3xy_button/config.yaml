@@ -1,0 +1,20 @@
+name: S3XY virtuel knap
+version: "0.1.0"
+slug: s3xy_button
+description: Styr en S3XY Commander fra Home Assistant via en virtuel Bluetooth-knap (ENH_BTN)
+url: https://github.com/usernamefourzerofour/s3xy-ha-bridge
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+host_dbus: true
+services:
+  - mqtt:need
+options:
+  bt_adapter: ""
+  btn_name: ENH_BTN
+schema:
+  bt_adapter: str?
+  btn_name: str
