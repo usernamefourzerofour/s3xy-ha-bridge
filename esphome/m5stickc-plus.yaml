@@ -7,7 +7,7 @@
 #
 # Includes s3xy-button.yaml and adds:
 #   - the red LED (G10) lights up while the Commander is connected
-#   - the big front button (M5, G37) sends a single press
+#   - the big front button (M5, G37) sends single, double and long presses
 #   - the screen turns on at power-up and shows Commander and Wi-Fi status
 # Keep it on USB power: the 120 mAh battery only lasts a few hours.
 
@@ -99,5 +99,39 @@ binary_sensor:
     pin:
       number: GPIO37
       inverted: true
+    filters:
+      - delayed_on_off: 20ms
     on_press:
+      # A second press cancels the pending single, even if it becomes a hold.
+      - lambda: id(front_button_second_press) = id(front_button_single_timeout).is_running();
+      - script.stop: front_button_single_timeout
+      - script.execute: front_button_hold_timeout
+    on_release:
+      - if:
+          # After a long press has fired, the hold timer is no longer running.
+          condition:
+            script.is_running: front_button_hold_timeout
+          then:
+            - script.stop: front_button_hold_timeout
+            - if:
+                condition:
+                  lambda: return id(front_button_second_press);
+                then:
+                  - script.execute: press_double
+                else:
+                  - script.execute: front_button_single_timeout
+
+globals:
+  - id: front_button_second_press
+    type: bool
+    initial_value: 'false'
+
+script:
+  - id: front_button_single_timeout
+    then:
+      - delay: 300ms
       - script.execute: press_single
+  - id: front_button_hold_timeout
+    then:
+      - delay: 600ms
+      - script.execute: press_long
