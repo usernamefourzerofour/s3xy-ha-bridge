@@ -1,37 +1,37 @@
-# S3XY virtuel knap
+# S3XY virtual button
 
-Denne add-on udgiver sig for at være Enhance Autos Bluetooth-knap (`ENH_BTN`), så du kan styre
-din S3XY Commander fra Home Assistant. Du får en enhed med tre knapper — **Tryk**, **Dobbelttryk**
-og **Langt tryk** — og en sensor, **Commander forbundet**.
+This add-on pretends to be Enhance Auto's Bluetooth button (`ENH_BTN`), so you can control
+your S3XY Commander from Home Assistant. You get a device with three buttons (**Press**,
+**Double press** and **Long press**) and a sensor, **Commander connected**.
 
-## Krav
-- **Mosquitto broker**-add-on'en og **MQTT**-integrationen. Add-on'en henter selv MQTT-login.
-- Bilen skal holde inden for ca. **10 m** af Home Assistant-maskinen.
-- Gerne en **ekstra USB-Bluetooth-dongle**, så HA's egen Bluetooth-integration ikke deler adapter med knappen.
+## Requirements
+- The **Mosquitto broker** add-on and the **MQTT** integration. The add-on fetches the MQTT login itself.
+- The car must be parked within about **10 m** of the Home Assistant machine.
+- Preferably an **extra USB Bluetooth dongle**, so HA's own Bluetooth integration does not share an adapter with the button.
 
-## Indstillinger
-| Indstilling | Forklaring |
+## Options
+| Option | Description |
 |---|---|
-| `bt_adapter` | Fx `hci1` for en USB-dongle. Tom = standardadapteren. |
-| `btn_name` | Bluetooth-navnet. Lad det være `ENH_BTN`. |
+| `bt_adapter` | E.g. `hci1` for a USB dongle. Empty = default adapter. |
+| `btn_name` | The Bluetooth name. Leave it as `ENH_BTN`. |
 
-Bruger du en ekstra dongle, så gå til *Indstillinger → Enheder & tjenester → Bluetooth* og
-**ignorér/deaktivér** donglen dér, så HA ikke også bruger den.
+If you use an extra dongle, go to *Settings → Devices & services → Bluetooth* and
+**ignore/disable** the dongle there, so HA does not use it as well.
 
-## Parring
-1. Start add-on'en og åbn fanen **Log**.
-2. På S3XY Commander: **Buttons → Add S3XY Button**.
-3. I loggen skal du se `Pairing confirmed`, `ID write: b6` og `Commander initialized`.
-4. Sensoren **Commander forbundet** skifter til *Forbundet*.
+## Pairing
+1. Start the add-on and open the **Log** tab.
+2. On the S3XY Commander: **Buttons → Add S3XY Button**.
+3. The log should show `Pairing confirmed`, `ID write: b6` and `Commander initialized`.
+4. The **Commander connected** sensor changes to *Connected*.
 
-## Brug
+## Usage
 ```yaml
 action: button.press
 target:
-  entity_id: button.s3xy_virtuel_knap_tryk
+  entity_id: button.s3xy_virtual_button_press
 ```
 
-## Fejlsøgning
-- **`Could not locate bluetooth adapter`**: Tjek `bt_adapter`, eller lad feltet være tomt.
-- **Ingen parring**: Prøv en dedikeret dongle, og flyt den tættere på bilen (USB-forlænger).
-- **Tryk virker ikke**: Commanderen skal være forbundet (se sensoren).
+## Troubleshooting
+- **`Could not locate bluetooth adapter`**: Check `bt_adapter`, or leave it empty.
+- **No pairing**: Try a dedicated dongle and move it closer to the car (USB extension cable).
+- **Presses do nothing**: The Commander must be connected (see the sensor).

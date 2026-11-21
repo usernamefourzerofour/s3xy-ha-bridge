@@ -16,7 +16,7 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
 - `s3xy_ha_bridge.py` is written, compiles and imports, but has **not been tested on hardware yet**. No BLE was available where it was written.
 - Erik runs **Home Assistant OS** and already has Mosquitto. Decision: run the bridge on the HA host **as an add-on** (`s3xy_button/`), using MQTT.
 - The add-on's dependencies install and import on Alpine (python:3.13-alpine3.22). The real HA base image could not be pulled in the sandbox, so the add-on has not been built by HA Supervisor yet.
-- HA side: MQTT discovery creates `button` entities (Tryk / Dobbelttryk / Langt tryk) plus a `binary_sensor` "Commander forbundet". This needs Mosquitto + the MQTT integration in HA.
+- HA side: MQTT discovery creates `button` entities (Press / Double press / Long press) plus a `binary_sensor` "Commander connected". This needs Mosquitto + the MQTT integration in HA.
 
 ## Files
 | File | Purpose |
@@ -26,10 +26,10 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
 | `s3xy_button/config.yaml` | Add-on manifest: `host_dbus: true`, `services: mqtt:need`, options `bt_adapter`, `btn_name` |
 | `s3xy_button/build.yaml`, `Dockerfile` | Built on `ghcr.io/home-assistant/{arch}-base-python:3.13-alpine3.22` |
 | `s3xy_button/run.sh` | bashio script: reads MQTT credentials from the Supervisor and options, then starts the bridge |
-| `s3xy_button/DOCS.md`, `translations/` | Danish add-on documentation and option labels |
+| `s3xy_button/DOCS.md`, `translations/` | Add-on documentation and option labels |
 | `s3xy_button/requirements.txt` | bless (<0.4; 0.3.0 still uses dbus-next), paho-mqtt (v2 API), dbus-next |
 | `s3xy-button.service` | systemd unit for non-HA-OS installs; MQTT settings are passed in as env vars |
-| `README.md` | Danish user guide (add-on install, manual install, pairing, HA usage) |
+| `README.md` | User guide (add-on install, manual install, pairing, HA usage) |
 
 ## BLE protocol (ENH_BTN)
 - Advertised name `ENH_BTN`. The service UUID is in the scan response.
@@ -57,7 +57,7 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
 ## How to test (first time on hardware)
 1. Open the add-on's **Log** tab (or `journalctl -u s3xy-button -f` for a manual install), then on the Commander: Buttons -> Add S3XY Button.
 2. Expected: `Pairing confirmed`, then `ID write: b6` and `Commander initialized`.
-3. Press "Tryk" in HA and check that the Commander reacts.
+3. Press "Press" in HA and check that the Commander reacts.
 4. Debug BLE: `btmon` on the host, or nRF Connect on a phone.
 
 ## Roadmap ideas
@@ -69,5 +69,5 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
 
 ## Conventions
 - Keep it as one simple Python file until it actually needs splitting.
-- User-facing text (README, HA entity names) in Danish; code and comments in English.
+- Everything in the repo is in English: README, add-on docs, HA entity names, code and comments. (Chat with Erik in Danish.)
 - Never commit MQTT passwords. Use env vars or a local override of the service file.

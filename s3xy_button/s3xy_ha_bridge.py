@@ -47,7 +47,7 @@ AVAIL_TOPIC = f"{NODE}/status"
 CONN_TOPIC = f"{NODE}/connected"
 DEVICE = {
     "identifiers": [NODE],
-    "name": "S3XY virtuel knap",
+    "name": "S3XY virtual button",
     "manufacturer": "DIY",
     "model": "ENH_BTN emulator",
 }
@@ -175,9 +175,9 @@ def setup_mqtt(loop, button: S3XYButton) -> mqtt.Client:
     def on_connect(c, userdata, flags, rc, props=None):
         log.info("MQTT connected (%s)", rc)
         for kind, label, icon in (
-            ("SINGLE", "Tryk", "mdi:gesture-tap"),
-            ("DOUBLE", "Dobbelttryk", "mdi:gesture-double-tap"),
-            ("LONG", "Langt tryk", "mdi:gesture-tap-hold"),
+            ("SINGLE", "Press", "mdi:gesture-tap"),
+            ("DOUBLE", "Double press", "mdi:gesture-double-tap"),
+            ("LONG", "Long press", "mdi:gesture-tap-hold"),
         ):
             uid = f"{NODE}_{kind.lower()}"
             c.publish(
@@ -192,7 +192,7 @@ def setup_mqtt(loop, button: S3XYButton) -> mqtt.Client:
         c.publish(
             f"homeassistant/binary_sensor/{NODE}_connected/config",
             json.dumps({
-                "name": "Commander forbundet", "unique_id": f"{NODE}_connected",
+                "name": "Commander connected", "unique_id": f"{NODE}_connected",
                 "device_class": "connectivity", "state_topic": CONN_TOPIC,
                 "availability_topic": AVAIL_TOPIC, "device": DEVICE,
             }),

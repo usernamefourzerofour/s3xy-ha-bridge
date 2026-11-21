@@ -1,7 +1,0 @@
-configuration:
-  bt_adapter:
-    name: Bluetooth-adapter
-    description: Fx hci1 for en ekstra USB-dongle. Tom = standardadapteren.
-  btn_name:
-    name: Bluetooth-navn
-    description: Navnet knappen reklamerer med. Lad det være ENH_BTN.

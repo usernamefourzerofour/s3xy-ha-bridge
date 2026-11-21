@@ -11,5 +11,5 @@ if bashio::config.has_value 'bt_adapter'; then
     export BT_ADAPTER="$(bashio::config 'bt_adapter')"
 fi
 
-bashio::log.info "Starter S3XY-bridge (MQTT: ${MQTT_HOST}:${MQTT_PORT}, adapter: ${BT_ADAPTER:-standard})"
+bashio::log.info "Starting S3XY bridge (MQTT: ${MQTT_HOST}:${MQTT_PORT}, adapter: ${BT_ADAPTER:-default})"
 exec python3 -u /app/s3xy_ha_bridge.py
