@@ -1,0 +1,164 @@
+# S3XY virtual button for ESPHome
+#
+# An ESP32 near the car pretends to be the Enhance Auto ENH_BTN Bluetooth button,
+# so Home Assistant can press it through the native ESPHome API (no MQTT, no add-on).
+# Protocol: see CLAUDE.md, ported from Beat-YT/s3xy-virtual-button (MIT).
+#
+# Needs an original ESP32, ESP32-S3 or ESP32-C3 (not ESP32-S2: no Bluetooth).
+# Put wifi_ssid, wifi_password and api_encryption_key in your ESPHome secrets.
+
+substitutions:
+  name: s3xy-button
+  friendly_name: S3XY virtual button
+  board: esp32dev
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  min_version: 2026.11.0
+
+esp32:
+  board: ${board}
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+# Same security as the real button: LE Secure Connections + bonding, "Just Works", 16-byte key
+esp32_ble:
+  name: ENH_BTN
+  io_capability: none
+  auth_req_mode: sc_bond
+  max_key_size: 16
+
+esp32_ble_server:
+  id: ble_srv
+  max_clients: 1
+  services:
+    - uuid: 00003d46-87d2-479e-7e45-8551415a6de1
+      advertise: true
+      characteristics:
+        # Button events are notified here
+        - id: notify_char
+          uuid: 00003d50-87d2-479e-7e45-8551415a6de1
+          read: true
+          notify: true
+          value:
+            data: [0x00]
+        # Button ID; the Commander writes its commands here
+        - id: id_char
+          uuid: 00003d49-87d2-479e-7e45-8551415a6de1
+          read: true
+          write: true
+          read_encrypt: true
+          write_encrypt: true
+          value:
+            data: SABRINASNS
+          on_write:
+            then:
+              - lambda: |-
+                  // x = written bytes, id = connection id
+                  ESP_LOGI("s3xy", "ID write: %s", format_hex_pretty(x).c_str());
+                  if (x.size() == 1 && x[0] == 0xB6) {          // init / version check
+                    id(notify_char)->set_value({0xC7, 0x00, 0x01});
+                    id(notify_char)->notify();
+                    ESP_LOGI("s3xy", "Commander initialized");
+                  } else if (x.size() == 1 && x[0] == 0xA1) {   // unpair -> disconnect
+                    ESP_LOGI("s3xy", "Commander requested unpair -> disconnect");
+                    esp_ble_gatts_close(id(ble_srv)->get_gatts_if(), id);
+                  } else if (x.size() == 4 && x[0] == 0xA4) {   // rename
+                    id(notify_char)->set_value({0xA4, 0x00, x[1], x[2]});
+                    id(notify_char)->notify();
+                    ESP_LOGI("s3xy", "Rename handled");
+                  }
+  on_connect:
+    - logger.log: "Commander connected"
+    - binary_sensor.template.publish:
+        id: commander_connected
+        state: true
+  on_disconnect:
+    - logger.log: "Commander disconnected"
+    - binary_sensor.template.publish:
+        id: commander_connected
+        state: false
+
+binary_sensor:
+  - platform: template
+    id: commander_connected
+    name: Commander connected
+    device_class: connectivity
+
+script:
+  # Single: 01, 00, C1 01, 00
+  - id: press_single
+    mode: queued
+    then:
+      - ble_server.characteristic.set_value:
+          id: notify_char
+          value: [0x01]
+      - ble_server.characteristic.notify:
+          id: notify_char
+      - delay: 10ms
+      - ble_server.characteristic.set_value:
+          id: notify_char
+          value: [0x00]
+      - ble_server.characteristic.notify:
+          id: notify_char
+      - delay: 10ms
+      - ble_server.characteristic.set_value:
+          id: notify_char
+          value: [0xC1, 0x01]
+      - ble_server.characteristic.notify:
+          id: notify_char
+      - delay: 10ms
+      - ble_server.characteristic.set_value:
+          id: notify_char
+          value: [0x00]
+      - ble_server.characteristic.notify:
+          id: notify_char
+  # Double: C1 02
+  - id: press_double
+    mode: queued
+    then:
+      - ble_server.characteristic.set_value:
+          id: notify_char
+          value: [0xC1, 0x02]
+      - ble_server.characteristic.notify:
+          id: notify_char
+  # Long: C3 01
+  - id: press_long
+    mode: queued
+    then:
+      - ble_server.characteristic.set_value:
+          id: notify_char
+          value: [0xC3, 0x01]
+      - ble_server.characteristic.notify:
+          id: notify_char
+
+button:
+  - platform: template
+    name: Press
+    icon: mdi:gesture-tap
+    on_press:
+      - script.execute: press_single
+  - platform: template
+    name: Double press
+    icon: mdi:gesture-double-tap
+    on_press:
+      - script.execute: press_double
+  - platform: template
+    name: Long press
+    icon: mdi:gesture-tap-hold
+    on_press:
+      - script.execute: press_long

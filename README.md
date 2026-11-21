@@ -16,6 +16,10 @@ A Linux machine with Bluetooth (e.g. the Home Assistant host or a Raspberry Pi) 
 2. Install **S3XY virtual button** and start it. The MQTT login is fetched from Mosquitto automatically.
 3. See the add-on's *Documentation* tab for options and pairing.
 
+## Alternative: an ESP32 with ESPHome
+If the Home Assistant machine is too far from the car, put an ESP32 close to the car instead.
+See [`esphome/README.md`](esphome/README.md).
+
 ## Manual install (Raspberry Pi OS / Debian, without HA OS)
 ```bash
 sudo mkdir -p /opt/s3xy && sudo cp s3xy_button/s3xy_ha_bridge.py s3xy_button/requirements.txt /opt/s3xy/
