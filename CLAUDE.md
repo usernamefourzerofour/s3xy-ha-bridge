@@ -27,6 +27,7 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
 | `s3xy_button/config.yaml` | Add-on manifest: `host_dbus: true`, `services: mqtt:need`, options `bt_adapter`, `btn_name` |
 | `s3xy_button/build.yaml`, `Dockerfile` | Built on `ghcr.io/home-assistant/{arch}-base-python:3.13-alpine3.22` |
 | `s3xy_button/run.sh` | bashio script: reads MQTT credentials from the Supervisor and options, then starts the bridge |
+| `s3xy_button/CHANGELOG.md` | Release notes, shown by HA when an update is offered |
 | `s3xy_button/DOCS.md`, `translations/` | Add-on documentation and option labels |
 | `s3xy_button/requirements.txt` | bless (<0.4; 0.3.0 still uses dbus-next), paho-mqtt (v2 API), dbus-next |
 | `s3xy-button.service` | systemd unit for non-HA-OS installs; MQTT settings are passed in as env vars |
@@ -69,7 +70,7 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
 3. More virtual buttons (one per S/E/X/Y tag?), or configurable IDs.
 4. **Two-way communication with the Commander:** sniff what else the Commander/app sends (nRF Connect + btmon/Wireshark), map characteristics and status, and expose them as HA sensors.
 5. **ESPHome alternative (optional, for range):** an ESP32 near the car running ESPHome, talking natively to HA (no MQTT/add-on). Preferred route: an ESPHome external component wrapping the protocol from Beat-YT's `S3XYButton.cpp` (proven against a real Commander). ESPHome's built-in `esp32_ble_server` is an option only if it supports the encryption-required characteristic + LE Secure Connections bonding the Commander needs (unverified). Note: HA's Bluetooth proxies (Shelly, ESPHome proxy) cannot be used, since they only scan/connect as a central and cannot act as a peripheral.
-6. ~~Package it as a Home Assistant add-on~~ Done (`s3xy_button/`). Bump `version` in `config.yaml` on every change so HA offers the update.
+6. ~~Package it as a Home Assistant add-on~~ Done (`s3xy_button/`). Bump `version` in `config.yaml` on every change so HA offers the update, and add an entry to `s3xy_button/CHANGELOG.md`.
 
 ## Conventions
 - Keep it as one simple Python file until it actually needs splitting.
