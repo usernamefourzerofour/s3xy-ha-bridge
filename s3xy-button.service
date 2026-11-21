@@ -1,0 +1,15 @@
+[Unit]
+Description=S3XY virtual button -> Home Assistant
+After=bluetooth.target network-online.target
+Wants=bluetooth.target network-online.target
+
+[Service]
+Environment=MQTT_HOST=192.168.1.10
+Environment=MQTT_USER=s3xy
+Environment=MQTT_PASS=skift-mig
+ExecStart=/opt/s3xy/venv/bin/python /opt/s3xy/s3xy_ha_bridge.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
