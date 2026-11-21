@@ -1,0 +1,36 @@
+# S3XY virtual button on an M5StickC Plus (ESP32-PICO-D4)
+#
+# Uses s3xy-button.yaml and adds:
+#   - the red LED (G10) lights up while the Commander is connected
+#   - the big front button (M5, G37) sends a single press
+# Keep it on USB power: the 120 mAh battery only lasts a few hours.
+
+substitutions:
+  name: s3xy-button
+  friendly_name: S3XY virtual button
+  board: m5stick-c
+
+packages:
+  s3xy: !include s3xy-button.yaml
+
+output:
+  - platform: gpio
+    id: red_led
+    pin:
+      number: GPIO10
+      inverted: true
+
+binary_sensor:
+  - id: !extend commander_connected
+    on_press:
+      - output.turn_on: red_led
+    on_release:
+      - output.turn_off: red_led
+  - platform: gpio
+    id: front_button
+    name: Front button
+    pin:
+      number: GPIO37
+      inverted: true
+    on_press:
+      - script.execute: press_single

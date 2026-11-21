@@ -19,6 +19,15 @@ car, and a real button is only centimetres away from it, so the signal must be s
 4. Install it. The first time over USB, after that over Wi-Fi.
 5. Home Assistant discovers the device. Add it under *Settings → Devices & services*.
 
+## M5StickC Plus
+Use `m5stickc-plus.yaml` instead. Copy **both** YAML files to your ESPHome config folder, since it
+includes `s3xy-button.yaml`. Extras:
+- The red LED lights up while the Commander is connected.
+- The big front button (M5) sends a single press.
+
+ESPHome warns that GPIO10 might be used by the flash. On the M5StickC Plus it is the LED, so the
+warning can be ignored. Keep it on USB power; the 120 mAh battery only lasts a few hours.
+
 ## Pairing
 1. Open the device's logs in ESPHome Device Builder.
 2. Sit in the car (awake) and open **Buttons → Add S3XY Button** in the S3XY app.
