@@ -24,9 +24,11 @@ Use `m5stickc-plus.yaml` instead. Copy **both** YAML files to your ESPHome confi
 includes `s3xy-button.yaml`. Extras:
 - The red LED lights up while the Commander is connected.
 - The big front button (M5) sends a single press.
+- The screen turns on at power-up and shows whether the Commander and Home Assistant are connected.
+  The display's power and backlight come from the AXP192 power chip, which is switched on over I2C at boot.
 
-ESPHome warns that GPIO10 might be used by the flash. On the M5StickC Plus it is the LED, so the
-warning can be ignored. Keep it on USB power; the 120 mAh battery only lasts a few hours.
+ESPHome warns about GPIO10 (flash) and GPIO5/GPIO15 (strapping pins). On the M5StickC Plus these are
+the LED and the display, so the warnings can be ignored. Keep it on USB power; the 120 mAh battery only lasts a few hours.
 
 ## Pairing
 1. Open the device's logs in ESPHome Device Builder.

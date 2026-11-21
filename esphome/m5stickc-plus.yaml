@@ -3,6 +3,7 @@
 # Uses s3xy-button.yaml and adds:
 #   - the red LED (G10) lights up while the Commander is connected
 #   - the big front button (M5, G37) sends a single press
+#   - the screen turns on at power-up and shows Commander and Wi-Fi status
 # Keep it on USB power: the 120 mAh battery only lasts a few hours.
 
 substitutions:
@@ -12,6 +13,72 @@ substitutions:
 
 packages:
   s3xy: !include s3xy-button.yaml
+
+esphome:
+  on_boot:
+    # After the I2C bus (1000), before the display (600)
+    priority: 900
+    then:
+      - lambda: |-
+          // AXP192 power chip: LDO2 = backlight, LDO3 = display. Set both to 3.0 V and turn them on.
+          const uint8_t axp = 0x34;
+          const uint8_t ldo_voltage[2] = {0x28, 0xCC};
+          id(bus_i2c)->write(axp, ldo_voltage, 2);
+          uint8_t reg = 0x12, outputs = 0;
+          id(bus_i2c)->write_readv(axp, &reg, 1, &outputs, 1);
+          const uint8_t power_on[2] = {0x12, (uint8_t) (outputs | 0x4D)};  // DCDC1, LDO2, LDO3, EXTEN
+          id(bus_i2c)->write(axp, power_on, 2);
+
+i2c:
+  id: bus_i2c
+  sda: GPIO21
+  scl: GPIO22
+
+spi:
+  clk_pin: GPIO13
+  mosi_pin: GPIO15
+
+font:
+  - file: "gfonts://Roboto@700"
+    id: font_title
+    size: 30
+  - file: "gfonts://Roboto"
+    id: font_text
+    size: 18
+
+display:
+  - platform: mipi_spi
+    model: ST7789V
+    dimensions:
+      width: 135
+      height: 240
+      offset_width: 52
+      offset_height: 40
+    cs_pin: GPIO5
+    dc_pin: GPIO23
+    reset_pin: GPIO18
+    invert_colors: true
+    rotation: 90
+    update_interval: 1s
+    lambda: |-
+      const auto white = Color(255, 255, 255);
+      const auto green = Color(0, 200, 80);
+      const auto orange = Color(255, 150, 0);
+      const auto grey = Color(140, 140, 140);
+      it.fill(Color::BLACK);
+      it.print(10, 8, id(font_title), white, "S3XY button");
+      if (id(commander_connected).state) {
+        it.print(10, 55, id(font_text), green, "Commander connected");
+      } else {
+        it.print(10, 55, id(font_text), orange, "Waiting for Commander");
+      }
+      if (api::global_api_server != nullptr && api::global_api_server->is_connected()) {
+        it.print(10, 95, id(font_text), green, "Home Assistant OK");
+      } else if (wifi::global_wifi_component->is_connected()) {
+        it.print(10, 95, id(font_text), grey, "Wi-Fi OK, no HA");
+      } else {
+        it.print(10, 95, id(font_text), orange, "No Wi-Fi");
+      }
 
 output:
   - platform: gpio

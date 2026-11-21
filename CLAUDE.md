@@ -32,7 +32,7 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
 | `s3xy_button/DOCS.md`, `translations/` | Add-on documentation and option labels |
 | `s3xy_button/requirements.txt` | bless (<0.4; 0.3.0 still uses dbus-next), paho-mqtt (v2 API), dbus-next |
 | `esphome/s3xy-button.yaml` | ESPHome alternative for an ESP32 near the car: pure YAML on ESPHome's `esp32_ble_server` (2026.11+), native HA API, no MQTT |
-| `esphome/m5stickc-plus.yaml` | Erik's board (M5StickC Plus, ESP32-PICO-D4): includes `s3xy-button.yaml`, red LED (G10) = connected, front button (G37) = single press |
+| `esphome/m5stickc-plus.yaml` | Erik's board (M5StickC Plus, ESP32-PICO-D4): includes `s3xy-button.yaml`, red LED (G10) = connected, front button (G37) = single press, status screen (ST7789V via `mipi_spi`, 135x240 offset 52/40; AXP192 LDO2/LDO3 switched on over I2C 0x34 in `on_boot`) |
 | `esphome/README.md` | Install/pairing guide for the ESPHome variant |
 | `s3xy-button.service` | systemd unit for non-HA-OS installs; MQTT settings are passed in as env vars |
 | `README.md` | User guide (add-on install, manual install, pairing, HA usage) |
