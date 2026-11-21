@@ -16,6 +16,15 @@
 esphome:
   min_version: 2026.11.0
 
+substitutions:
+  s3xy_firmware_version: "0.1.0"
+
+external_components:
+  - source: github://usernamefourzerofour/s3xy-ha-bridge@main
+    components: [s3xy_ble_security]
+
+s3xy_ble_security:
+
 # Same security as the real button: LE Secure Connections + bonding, "Just Works", 16-byte key
 esp32_ble:
   name: ENH_BTN

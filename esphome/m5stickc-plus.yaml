@@ -79,6 +79,7 @@ display:
       } else {
         it.print(10, 95, id(font_text), orange, "No Wi-Fi");
       }
+      it.print(230, 132, id(font_text), grey, TextAlign::BOTTOM_RIGHT, "v${s3xy_firmware_version}");
 
 output:
   - platform: gpio
