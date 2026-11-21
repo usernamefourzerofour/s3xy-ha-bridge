@@ -65,7 +65,8 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
 2. Handle `A1` (disconnect) and the connect poke properly.
 3. More virtual buttons (one per S/E/X/Y tag?), or configurable IDs.
 4. **Two-way communication with the Commander:** sniff what else the Commander/app sends (nRF Connect + btmon/Wireshark), map characteristics and status, and expose them as HA sensors.
-5. ~~Package it as a Home Assistant add-on~~ Done (`s3xy_button/`). Bump `version` in `config.yaml` on every change so HA offers the update.
+5. **ESPHome alternative (optional, for range):** an ESP32 near the car running ESPHome, talking natively to HA (no MQTT/add-on). Preferred route: an ESPHome external component wrapping the protocol from Beat-YT's `S3XYButton.cpp` (proven against a real Commander). ESPHome's built-in `esp32_ble_server` is an option only if it supports the encryption-required characteristic + LE Secure Connections bonding the Commander needs (unverified). Note: HA's Bluetooth proxies (Shelly, ESPHome proxy) cannot be used, since they only scan/connect as a central and cannot act as a peripheral.
+6. ~~Package it as a Home Assistant add-on~~ Done (`s3xy_button/`). Bump `version` in `config.yaml` on every change so HA offers the update.
 
 ## Conventions
 - Keep it as one simple Python file until it actually needs splitting.
