@@ -129,9 +129,11 @@ class S3XYButton:
         return characteristic.value
 
     def _on_write(self, characteristic, value, **kwargs):
-        characteristic.value = value
         if str(characteristic.uuid).lower() != CHAR_ID_UUID:
+            characteristic.value = value
             return
+        # Writes to the ID char are commands; keep the stored value as the
+        # 10-byte button ID so later reads still return it.
         data = bytes(value)
         log.info("ID write: %s", data.hex(" "))
         if data == b"\xb6":  # init / version check
