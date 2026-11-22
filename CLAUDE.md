@@ -1,6 +1,6 @@
 # CLAUDE.md — s3xy-ha-bridge
 
-Handover note for Claude Code. The owner (Erik) writes in Danish; reply in Danish unless asked otherwise.
+Shared project notes for Claude and Codex are linked from [AGENTS.md](AGENTS.md). Start with [STATUS.md](STATUS.md), [TODO.md](TODO.md) and [DECISIONS.md](DECISIONS.md) for the current hardware results and next test. The BlueZ development history and protocol notes below provide background.
 
 ## Goal
 Control an Enhance Auto **S3XY Commander (Gen 2)** in a Tesla from **Home Assistant** without an ESP32.
@@ -12,7 +12,7 @@ A Linux machine with Bluetooth (BlueZ) pretends to be the official BLE button `E
 Python port of [Beat-YT/s3xy-virtual-button](https://github.com/Beat-YT/s3xy-virtual-button) (ESP32/Arduino, MIT).
 All protocol details below come from that repo's `src/S3XYButton.cpp`, which was reverse-engineered by sniffing real ENH_BTN <-> Commander traffic.
 
-## Status (2026-11-21)
+## BlueZ add-on history (2026-11-21)
 - `s3xy_ha_bridge.py` is written, compiles and imports, but has **not been tested on hardware yet**. No BLE was available where it was written.
 - Erik runs **Home Assistant OS** and already has Mosquitto. Decision: run the bridge on the HA host **as an add-on** (`s3xy_button/`), using MQTT.
 - The add-on builds and runs on Erik's HA OS (hci0, Intel adapter, shared with HA's passive Bluetooth scanning). MQTT works (`core-mosquitto`), and a Shelly proxy sees hci0 advertising.
@@ -64,7 +64,7 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
 - bless's `is_connected()` means "a central is subscribed to notifications", not "a device is connected" (nRF Connect connected + paired without subscribing, and the sensor stayed off). That is fine for presses, which only work when subscribed. It is polled every 5 s for the binary_sensor. Connection events themselves are logged immediately via D-Bus `PropertiesChanged` on `org.bluez.Device1` (filtered to our adapter).
 - The method signatures in `JustWorksAgent` use dbus-next string annotations (`"o"`, `"u"`, `"s"`). pyflakes reports them as false positives.
 
-## How to test (first time on hardware)
+## How to test the BlueZ add-on
 1. Open the add-on's **Log** tab (or `journalctl -u s3xy-button -f` for a manual install), then on the Commander: Buttons -> Add S3XY Button.
 2. Expected: `Pairing confirmed`, then `ID write: b6` and `Commander initialized`.
 3. Press "Press" in HA and check that the Commander reacts.
@@ -75,7 +75,7 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
 2. ~~Handle `A1` (disconnect)~~ Done. Connect poke not needed (see protocol notes).
 3. More virtual buttons (one per S/E/X/Y tag?), or configurable IDs.
 4. **Two-way communication with the Commander:** the Commander itself advertises as `ENH_<6 hex>` (Erik's: `ENH_550422`) with service `5857a678-87c6-11eb-8dcd-0242ac130003`, presumably what the S3XY app talks to. Start there. Then sniff what else the Commander/app sends (nRF Connect + btmon/Wireshark), map characteristics and status, and expose them as HA sensors.
-5. **ESPHome alternative (in progress, `esphome/`):** Erik chose this route because of the weak signal. It turned out no external component is needed: ESPHome 2026.11's `esp32_ble` has `name`, `io_capability: none`, `auth_req_mode: sc_bond`, `max_key_size: 16`, and `esp32_ble_server` has `read_encrypt`/`write_encrypt`, `on_write` (args `x` bytes, `id` conn id), `on_connect`/`on_disconnect` and `set_value`/`notify` actions. `A1` disconnect uses `esp_ble_gatts_close(id(ble_srv)->get_gatts_if(), id)`. Validated with `esphome config`; a full compile could not run in the sandbox (Espressif's component registry is blocked), so the first real build happens in Erik's ESPHome Device Builder. Not done vs. the sketch: the ESP32 does not itself request encryption on connect (the BlueZ version did not either, and iOS paired fine). Original idea, kept for reference: an ESP32 near the car running ESPHome, talking natively to HA (no MQTT/add-on). Preferred route: an ESPHome external component wrapping the protocol from Beat-YT's `S3XYButton.cpp` (proven against a real Commander). ESPHome's built-in `esp32_ble_server` is an option only if it supports the encryption-required characteristic + LE Secure Connections bonding the Commander needs (unverified). Note: HA's Bluetooth proxies (Shelly, ESPHome proxy) cannot be used, since they only scan/connect as a central and cannot act as a peripheral.
+5. **ESPHome on M5StickC Plus:** see [STATUS.md](STATUS.md) for the running implementation and hardware evidence. The built-in BLE server and the external security component are both used. See [TODO.md](TODO.md) for the remaining gesture work.
 6. ~~Package it as a Home Assistant add-on~~ Done (`s3xy_button/`). Bump `version` in `config.yaml` on every change so HA offers the update, and add an entry to `s3xy_button/CHANGELOG.md`.
 
 ## Conventions
