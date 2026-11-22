@@ -37,8 +37,8 @@ the LED and the display, so the warnings can be ignored. Keep it on USB power; t
 
 ## Pairing
 1. Open the device's logs in ESPHome Device Builder.
-2. Sit in the car (awake) and open **Buttons → Add S3XY Button** in the S3XY app. On the M5StickC Plus,
-   hold the front M5 button until pairing completes. A bonded Commander can reconnect automatically.
+2. Sit in the car (awake) and open **Buttons → Add S3XY Button** in the S3XY app. The M5StickC Plus
+   advertises automatically, so you can leave the front button alone. A bonded Commander can reconnect automatically.
 3. The log should show `Commander connected` and `Requested BLE encryption`. Look for
    `Commander notifications enabled`, `ID write: B6` and `Sent Commander initialization reply`.
 

@@ -40,7 +40,7 @@ class S3XYBLESecurity : public Component {
   }
 
   void unpair(uint16_t connection_id) {
-    this->forget_peer_ = this->hold_to_pair_;
+    this->forget_peer_ = true;
     if (esp_ble_gatts_close(this->server_->get_gatts_if(), connection_id) != ESP_OK) {
       this->forget_peer_ = false;
       ESP_LOGW("s3xy", "Could not disconnect Commander after unpair request");
@@ -87,10 +87,10 @@ class S3XYBLESecurity : public Component {
         this->front_button_down_ = false;
         this->pending_init_ = false;
         this->pending_rename_.reset();
+        if (this->forget_peer_)
+          this->remove_bond_(param->disconnect.remote_bda);
         if (this->hold_to_pair_) {
           this->server_->set_pairing_enabled(false);
-          if (this->forget_peer_)
-            this->remove_bond_(param->disconnect.remote_bda);
           this->refresh_advertising_();
         }
         break;

@@ -14,9 +14,6 @@
 packages:
   s3xy: !include s3xy-button.yaml
 
-s3xy_ble_security:
-  hold_to_pair: true
-
 esphome:
   on_boot:
     # After the I2C bus (1000), before the display (600)
@@ -79,12 +76,8 @@ display:
       it.print(10, 8, id(font_title), white, "S3XY button");
       if (id(s3xy_link)->subscribed()) {
         it.print(10, 51, id(font_text), green, "Commander ready");
-      } else if (id(s3xy_link)->pairing_held()) {
-        it.print(10, 51, id(font_text), green, "Pairing - keep holding");
       } else if (id(commander_connected).state) {
         it.print(10, 51, id(font_text), orange, "Commander linking...");
-      } else if (id(s3xy_link)->waiting_for_hold()) {
-        it.print(10, 51, id(font_text), orange, "Hold M5 to pair");
       } else {
         it.print(10, 51, id(font_text), orange, "Waiting for Commander");
       }
@@ -142,25 +135,6 @@ binary_sensor:
     filters:
       - delayed_on_off: 20ms
     on_press:
-      - if:
-          condition:
-            lambda: return id(s3xy_link)->subscribed();
-          then:
-            - lambda: id(s3xy_link)->set_front_button(true);
-          else:
-            - script.execute: front_button_pairing_hold
+      - lambda: id(s3xy_link)->set_front_button(true);
     on_release:
-      - script.stop: front_button_pairing_hold
-      - lambda: |-
-          id(s3xy_link)->set_front_button(false);
-          id(s3xy_link)->set_pairing_held(false);
-
-script:
-  - id: front_button_pairing_hold
-    then:
-      - delay: 600ms
-      - if:
-          condition:
-            lambda: return !id(s3xy_link)->subscribed();
-          then:
-            - lambda: id(s3xy_link)->set_pairing_held(true);
+      - lambda: id(s3xy_link)->set_front_button(false);
