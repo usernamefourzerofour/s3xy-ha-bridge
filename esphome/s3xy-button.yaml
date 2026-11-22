@@ -17,7 +17,7 @@ esphome:
   min_version: 2026.11.0
 
 substitutions:
-  s3xy_firmware_version: "0.1.4"
+  s3xy_firmware_version: "0.1.5"
   s3xy_button_id: SABRINASNS
 
 external_components:
@@ -86,6 +86,7 @@ esp32_ble_server:
   on_disconnect:
     - logger.log: "Commander disconnected"
     - script.stop: press_single
+    - script.stop: press_double
     - ble_server.characteristic.set_value:
         id: id_char
         value: ${s3xy_button_id}
@@ -138,7 +139,7 @@ script:
                 value: [0x00]
             - ble_server.characteristic.notify:
                 id: notify_char
-  # Double: C1 02
+  # Experimental HA double press: two taps, then the gesture notification.
   - id: press_double
     mode: queued
     then:
@@ -149,12 +150,16 @@ script:
             - logger.log:
                 level: INFO
                 tag: s3xy
-                format: "Sending double press"
-            - ble_server.characteristic.set_value:
-                id: notify_char
-                value: [0xC1, 0x02]
-            - ble_server.characteristic.notify:
-                id: notify_char
+                format: "Testing double press sequence"
+            - lambda: id(s3xy_link)->send_double_press_packet({0x01});
+            - delay: 100ms
+            - lambda: id(s3xy_link)->send_double_press_packet({0x00});
+            - delay: 150ms
+            - lambda: id(s3xy_link)->send_double_press_packet({0x01});
+            - delay: 100ms
+            - lambda: id(s3xy_link)->send_double_press_packet({0x00});
+            - delay: 10ms
+            - lambda: id(s3xy_link)->send_double_press_packet({0xC1, 0x02});
   # Long: C3 01
   - id: press_long
     mode: queued

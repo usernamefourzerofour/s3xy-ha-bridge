@@ -1,9 +1,11 @@
 #pragma once
 
 #include <esp_gap_ble_api.h>
+#include <esp_gatts_api.h>
 
 #include <array>
 #include <cstring>
+#include <initializer_list>
 #include <optional>
 #include <vector>
 
@@ -60,6 +62,16 @@ class S3XYBLESecurity : public Component {
       case ESP_GATTS_START_EVT:
         this->refresh_advertising_();
         break;
+      case ESP_GATTS_ADD_CHAR_EVT: {
+        auto &characteristic = param->add_char;
+        auto *service = this->notify_->get_service();
+        if (characteristic.status == ESP_GATT_OK && service != nullptr &&
+            characteristic.service_handle == service->get_handle() &&
+            esp32_ble::ESPBTUUID::from_uuid(characteristic.char_uuid) == this->notify_->get_uuid()) {
+          this->notify_handle_ = characteristic.attr_handle;
+        }
+        break;
+      }
       case ESP_GATTS_ADD_CHAR_DESCR_EVT: {
         const auto &descriptor = param->add_char_descr;
         auto *service = this->notify_->get_service();
@@ -74,14 +86,19 @@ class S3XYBLESecurity : public Component {
         const auto &write = param->write;
         if (this->link_allowed_ && write.handle == this->cccd_handle_ && write.len == 2 && !write.is_prep) {
           this->subscribed_ = (write.value[0] & 0x01) != 0;
-          if (!this->subscribed_)
+          if (this->subscribed_) {
+            this->notify_client_ = write.conn_id;
+          } else {
+            this->notify_client_.reset();
             this->front_button_down_ = false;
+          }
           ESP_LOGI("s3xy", "Commander notifications %s", this->subscribed_ ? "enabled" : "disabled");
           this->flush_replies_();
         }
         break;
       }
       case ESP_GATTS_DISCONNECT_EVT:
+        this->notify_client_.reset();
         this->link_allowed_ = false;
         this->subscribed_ = false;
         this->front_button_down_ = false;
@@ -108,6 +125,26 @@ class S3XYBLESecurity : public Component {
     this->notify_->set_value({static_cast<uint8_t>(down ? 0x01 : 0x00)});
     this->notify_->notify();
     ESP_LOGI("s3xy", "Front button %s", down ? "down" : "up");
+  }
+
+  void send_double_press_packet(std::initializer_list<uint8_t> packet) {
+    if (!this->notify_client_ || !this->notify_handle_) {
+      ESP_LOGW("s3xy", "Double press packet skipped: no subscribed client or notification handle");
+      return;
+    }
+
+    this->notify_->set_value(packet);
+    auto &value = this->notify_->get_value();
+    // Send a GATT notification and capture the return status that ESPHome's notify() does not expose.
+    const esp_err_t result =
+        esp_ble_gatts_send_indicate(this->server_->get_gatts_if(), *this->notify_client_, *this->notify_handle_,
+                                   static_cast<uint16_t>(value.size()), value.data(), false);
+    if (value.size() == 1) {
+      ESP_LOGI("s3xy", "Double press TX %02X: %s", static_cast<unsigned>(value[0]), esp_err_to_name(result));
+    } else {
+      ESP_LOGI("s3xy", "Double press TX %02X %02X: %s", static_cast<unsigned>(value[0]),
+               static_cast<unsigned>(value[1]), esp_err_to_name(result));
+    }
   }
 
   bool ready_for_press() const {
@@ -223,6 +260,8 @@ class S3XYBLESecurity : public Component {
   esp32_ble::ESP32BLE *ble_;
   esp32_ble_server::BLEServer *server_;
   esp32_ble_server::BLECharacteristic *notify_;
+  std::optional<uint16_t> notify_handle_;
+  std::optional<uint16_t> notify_client_;
   uint16_t cccd_handle_{0xFFFF};
   bool hold_to_pair_{false};
   bool pairing_held_{false};

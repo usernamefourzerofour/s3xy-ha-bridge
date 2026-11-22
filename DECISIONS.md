@@ -15,3 +15,7 @@ For a M5StickC Plus power cycle, unplug USB, hold the side power button for abou
 The ESPHome package and its external BLE component each have a Git reference. A package-only rollback can still use the current BLE code. Pin both for a controlled rollback. When building from `main`, account for the package cache. The full package syntax supports `refresh: always`. Check the S3XY version on the display after flashing. [ESPHome package documentation](https://esphome.io/components/packages/#remotegit-packages)
 
 The HA repair for `ESPHome Web acf300` referred to the old registration. The new `s3xy-button` uses the current API key from its own YAML. Device Builder's Online badge confirms reachability. The S3XY pairing path uses BLE independently of HA. [Home Assistant integration documentation](https://www.home-assistant.io/integrations/esphome/)
+
+## 2026-11-22. Instrument the HA double-press experiment
+
+Firmware 0.1.5 tests two down/up pairs followed by `C1 02` through the existing HA Double press entity. The candidate timings are fixed for the trial. The test uses the same GATT notification operation as ESPHome and logs the return status for each packet. `ESP_OK` means the local stack accepted that call. The vehicle action is the acceptance check. The physical button path stays as the baseline pending the test.

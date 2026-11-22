@@ -2,6 +2,10 @@
 
 Updated 2026-11-22. Active hardware is the M5StickC Plus with ESPHome 2026.11.0 and S3XY Commander. The ESPHome variant uses the native Home Assistant API. The Linux/BlueZ MQTT add-on remains an alternative, with its earlier test history in [CLAUDE.md](CLAUDE.md).
 
+## Ready for hardware test
+
+Firmware **0.1.5** adds the approved HA double-press experiment from [TODO.md](TODO.md). The physical button, HA single and long press, and the automatic pairing flow still follow the 0.1.4 behavior. Hardware results below are from 0.1.4. The 0.1.5 build and vehicle response are pending.
+
 ## Verified on hardware
 
 - The M5Stick display showed S3XY firmware **0.1.4**, from [the automatic-pairing change](https://github.com/usernamefourzerofour/s3xy-ha-bridge/commit/2dc5f0dabc75676fe81bf1e4e35cf71e67fc64b1). The device uses [the M5StickC Plus package](esphome/m5stickc-plus.yaml).
@@ -13,6 +17,6 @@ Evidence is the owner-provided ESPHome log `s3xy-button-logs (2).txt` from 2026-
 
 ## Current diagnosis
 
-The failed HA double-press test bypasses the physical click detector. In [the ESPHome scripts](esphome/s3xy-button.yaml), HA single sends `01 → 00 → C1 01 → 00`, whereas HA double sends `C1 02` by itself and HA long sends `C3 01` by itself. These sequences come from the [reference implementation](https://github.com/Beat-YT/s3xy-virtual-button/blob/master/src/S3XYButton.cpp). Compatibility of the standalone double and long notifications with this Commander setup remains unverified. The app's press animation shows a press indication, with gesture classification and action execution still separate.
+The failed 0.1.4 HA double-press test bypasses the physical click detector. In [the ESPHome scripts](esphome/s3xy-button.yaml), HA single sends `01 → 00 → C1 01 → 00`, whereas 0.1.4 HA double sends `C1 02` by itself and HA long sends `C3 01` by itself. These sequences come from the [reference implementation](https://github.com/Beat-YT/s3xy-virtual-button/blob/master/src/S3XYButton.cpp). Compatibility of the standalone double and long notifications with this Commander setup remains unverified. The app's press animation shows a press indication, with gesture classification and action execution still separate.
 
 See [TODO.md](TODO.md) for the next test and [DECISIONS.md](DECISIONS.md) for prior changes and recovery notes.
