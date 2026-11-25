@@ -127,9 +127,10 @@ class S3XYBLESecurity : public Component {
     ESP_LOGI("s3xy", "Front button %s", down ? "down" : "up");
   }
 
-  void send_double_press_packet(std::initializer_list<uint8_t> packet) {
+  // Send one gesture packet and log the stack's return status, which ESPHome's notify() does not expose.
+  void send_gesture_packet(const char *gesture, std::initializer_list<uint8_t> packet) {
     if (!this->notify_client_ || !this->notify_handle_) {
-      ESP_LOGW("s3xy", "Double press packet skipped: no subscribed client or notification handle");
+      ESP_LOGW("s3xy", "%s packet skipped: no subscribed client or notification handle", gesture);
       return;
     }
 
@@ -140,9 +141,9 @@ class S3XYBLESecurity : public Component {
         esp_ble_gatts_send_indicate(this->server_->get_gatts_if(), *this->notify_client_, *this->notify_handle_,
                                    static_cast<uint16_t>(value.size()), value.data(), false);
     if (value.size() == 1) {
-      ESP_LOGI("s3xy", "Double press TX %02X: %s", static_cast<unsigned>(value[0]), esp_err_to_name(result));
+      ESP_LOGI("s3xy", "%s TX %02X: %s", gesture, static_cast<unsigned>(value[0]), esp_err_to_name(result));
     } else {
-      ESP_LOGI("s3xy", "Double press TX %02X %02X: %s", static_cast<unsigned>(value[0]),
+      ESP_LOGI("s3xy", "%s TX %02X %02X: %s", gesture, static_cast<unsigned>(value[0]),
                static_cast<unsigned>(value[1]), esp_err_to_name(result));
     }
   }

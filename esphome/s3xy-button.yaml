@@ -17,7 +17,7 @@ esphome:
   min_version: 2026.11.0
 
 substitutions:
-  s3xy_firmware_version: "0.1.5"
+  s3xy_firmware_version: "0.1.6"
   s3xy_button_id: SABRINASNS
 
 external_components:
@@ -87,6 +87,7 @@ esp32_ble_server:
     - logger.log: "Commander disconnected"
     - script.stop: press_single
     - script.stop: press_double
+    - script.stop: press_long
     - ble_server.characteristic.set_value:
         id: id_char
         value: ${s3xy_button_id}
@@ -139,7 +140,7 @@ script:
                 value: [0x00]
             - ble_server.characteristic.notify:
                 id: notify_char
-  # Experimental HA double press: two taps, then the gesture notification.
+  # Experimental HA double press (0.1.6): two taps, the gesture, then 00 like the working single press.
   - id: press_double
     mode: queued
     then:
@@ -151,16 +152,18 @@ script:
                 level: INFO
                 tag: s3xy
                 format: "Testing double press sequence"
-            - lambda: id(s3xy_link)->send_double_press_packet({0x01});
+            - lambda: id(s3xy_link)->send_gesture_packet("Double press", {0x01});
             - delay: 100ms
-            - lambda: id(s3xy_link)->send_double_press_packet({0x00});
+            - lambda: id(s3xy_link)->send_gesture_packet("Double press", {0x00});
             - delay: 150ms
-            - lambda: id(s3xy_link)->send_double_press_packet({0x01});
+            - lambda: id(s3xy_link)->send_gesture_packet("Double press", {0x01});
             - delay: 100ms
-            - lambda: id(s3xy_link)->send_double_press_packet({0x00});
+            - lambda: id(s3xy_link)->send_gesture_packet("Double press", {0x00});
             - delay: 10ms
-            - lambda: id(s3xy_link)->send_double_press_packet({0xC1, 0x02});
-  # Long: C3 01
+            - lambda: id(s3xy_link)->send_gesture_packet("Double press", {0xC1, 0x02});
+            - delay: 10ms
+            - lambda: id(s3xy_link)->send_gesture_packet("Double press", {0x00});
+  # Experimental HA long press (0.1.6): down, hold, the gesture, then 00 like the working single press.
   - id: press_long
     mode: queued
     then:
@@ -171,12 +174,12 @@ script:
             - logger.log:
                 level: INFO
                 tag: s3xy
-                format: "Sending long press"
-            - ble_server.characteristic.set_value:
-                id: notify_char
-                value: [0xC3, 0x01]
-            - ble_server.characteristic.notify:
-                id: notify_char
+                format: "Testing long press sequence"
+            - lambda: id(s3xy_link)->send_gesture_packet("Long press", {0x01});
+            - delay: 1000ms
+            - lambda: id(s3xy_link)->send_gesture_packet("Long press", {0xC3, 0x01});
+            - delay: 10ms
+            - lambda: id(s3xy_link)->send_gesture_packet("Long press", {0x00});
 
 button:
   - platform: template

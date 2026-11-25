@@ -53,8 +53,8 @@ All protocol details below come from that repo's `src/S3XYButton.cpp`, which was
   - `A4 XX YY ZZ` -> reply notify `A4 00 XX YY` (rename, likely the S/E/X/Y tag)
 - Button -> Commander (notify):
   - Single: `01`, `00`, `C1 01`, `00` (about 5–20 ms apart)
-  - Double: `C1 02`
-  - Long: `C3 01`
+  - Double: `C1 02` in the sketch. **Did not trigger the action on Erik's Commander** (0.1.4). 0.1.6 tests `01, 00, 01, 00, C1 02, 00`.
+  - Long: `C3 01` in the sketch. 0.1.6 tests `01`, 1 s hold, `C3 01`, `00`.
   - On connect, the ESP32 version "pokes" `00`, but `notifyBytes()` drops it unless notifications are already subscribed, which they never are right at connect. So the poke is effectively a no-op and is not ported.
 
 ## Implementation notes / known risks

@@ -4,7 +4,7 @@ Updated 2026-11-22. Active hardware is the M5StickC Plus with ESPHome 2026.11.0 
 
 ## Ready for hardware test
 
-Firmware **0.1.5** adds the approved HA double-press experiment from [TODO.md](TODO.md). The physical button, HA single and long press, and the automatic pairing flow still follow the 0.1.4 behavior. Hardware results below are from 0.1.4. The 0.1.5 build and vehicle response are pending.
+Firmware **0.1.6** replaces the untested 0.1.5 double-press candidate and adds a long-press candidate. Both end with `00`, like the HA single press that works. The physical button, HA single press and the automatic pairing flow still follow the 0.1.4 behavior. Hardware results below are from 0.1.4. 0.1.5 was not tested on hardware. The 0.1.6 build and vehicle response are pending.
 
 ## Verified on hardware
 

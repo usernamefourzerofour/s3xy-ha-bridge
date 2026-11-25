@@ -19,3 +19,7 @@ The HA repair for `ESPHome Web acf300` referred to the old registration. The new
 ## 2026-11-22. Instrument the HA double-press experiment
 
 Firmware 0.1.5 tests two down/up pairs followed by `C1 02` through the existing HA Double press entity. The candidate timings are fixed for the trial. The test uses the same GATT notification operation as ESPHome and logs the return status for each packet. `ESP_OK` means the local stack accepted that call. The vehicle action is the acceptance check. The physical button path stays as the baseline pending the test.
+
+## 2026-11-25. End the gesture candidates with `00`
+
+Firmware 0.1.6 supersedes the 0.1.5 double-press trial before it reached hardware. The only sequence known to work, HA single press, ends with `00` after the gesture packet `C1 01`. The 0.1.4 standalone `C1 02` failed, and the 0.1.5 candidate also lacked the closing `00`. 0.1.6 appends `00` to the double-press candidate and gives long press the same shape: down, a 1 s hold, `C3 01`, `00`. Both reuse the 0.1.5 per-packet TX logging, now named `send_gesture_packet()`. The reference repository's README says double and long press work, but its sketch sends them as single packets and its issues do not discuss them.
